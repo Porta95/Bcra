@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap");
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: #0a0a0a;
+  color: #e8e8e8;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Patrón de fondo sutil tipo cuaderno técnico */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 32px 32px;
+  z-index: 0;
+}
+
+/* Tabular numbers en todo lo que sea numérico */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Scroll bar discreto */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: #1f1f1f; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #2a2a2a; }
+
+/* Animación de aparición escalonada para el dashboard */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.4s ease-out backwards; }
