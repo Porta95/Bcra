@@ -2,64 +2,80 @@
  * Cliente para las APIs públicas del BCRA.
  *
  * Endpoints oficiales (sin autenticación):
- *  - https://api.bcra.gob.ar/estadisticas/v3.0/Monetarias
- *  - https://api.bcra.gob.ar/estadisticas/v3.0/Monetarias/{id}
- *  - https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Maestros/Divisas
- *  - https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones
- *  - https://api.bcra.gob.ar/centraldedeudores/v1.0/Deudas/{cuit}
- *  - https://api.bcra.gob.ar/centraldedeudores/v1.0/Deudas/Historicas/{cuit}
- *  - https://api.bcra.gob.ar/centraldedeudores/v1.0/Deudas/ChequesRechazados/{cuit}
  *
- * El BCRA actualiza estos datos a diario, así que cacheamos agresivo en el
- * edge de Vercel con `next: { revalidate }`. Eso nos da un CDN gratis sin
- * tener que mantener un Redis.
+ * Estadísticas Monetarias v4.0
+ *  - GET /estadisticas/v4.0/monetarias                       (listado de variables)
+ *  - GET /estadisticas/v4.0/monetarias/{id}                  (serie histórica)
+ *  - GET /estadisticas/v4.0/metodologia/{id}                 (descripción)
+ *
+ * Estadísticas Cambiarias v1.0
+ *  - GET /estadisticascambiarias/v1.0/Cotizaciones
+ *
+ * Central de Deudores v1.0
+ *  - GET /centraldedeudores/v1.0/Deudas/{cuit}
+ *  - GET /centraldedeudores/v1.0/Deudas/Historicas/{cuit}
+ *  - GET /centraldedeudores/v1.0/Deudas/ChequesRechazados/{cuit}
+ *
+ * Cheques Denunciados v1.0
+ *  - GET /cheques/v1.0/entidades
+ *  - GET /cheques/v1.0/denunciados/{codigoEntidad}/{numeroCheque}
+ *
+ * Régimen de Transparencia v1.0
+ *  - GET /transparencia/v1.0/CajasAhorros
+ *  - GET /transparencia/v1.0/PaquetesProductos
+ *  - GET /transparencia/v1.0/PlazosFijos
+ *  - GET /transparencia/v1.0/Prestamos/Personales
+ *  - GET /transparencia/v1.0/Prestamos/Hipotecarios
+ *  - GET /transparencia/v1.0/Prestamos/Prendarios
+ *  - GET /transparencia/v1.0/TarjetasCredito
  */
 
 const BCRA_BASE = "https://api.bcra.gob.ar";
 
-// TTL de cache en segundos
 export const TTL = {
-  variables: 60 * 30,   // listado de variables: 30 min
-  serie: 60 * 30,       // serie histórica: 30 min
-  cotizaciones: 60 * 15, // cotizaciones del día: 15 min
-  deudores: 60 * 60 * 6, // deudas: el BCRA reporta mensual, 6h sobra
+  variables: 60 * 30,
+  serie: 60 * 30,
+  cotizaciones: 60 * 15,
+  deudores: 60 * 60 * 6,
   cheques: 60 * 60 * 6,
+  entidades: 60 * 60 * 24, // listas estables, 1 día
+  transparencia: 60 * 60 * 6, // bancos actualizan ocasionalmente
 };
 
-// ---------- Tipos ----------
+// ======================================================================
+//   Tipos
+// ======================================================================
 
 export interface Variable {
   idVariable: number;
-  cdSerie: number;
   descripcion: string;
-  fecha: string;          // YYYY-MM-DD
-  valor: number;
-  categoria?: string;
+  categoria: string;
+  tipoSerie: string;
+  periodicidad: string;
+  unidadExpresion: string;
+  moneda: string;
+  primerFechaInformada: string;
+  ultFechaInformada: string;
+  ultValorInformado: number;
 }
 
 export interface SeriePoint {
-  idVariable: number;
   fecha: string;
   valor: number;
 }
 
-export interface Cotizacion {
-  codigoMoneda: string;
-  descripcion: string;
-  tipoPase: number;
-  tipoCotizacion: number;
+interface SerieRawResult {
+  idVariable: number;
+  detalle: SeriePoint[];
 }
 
-export interface CotizacionesResponse {
-  fecha: string;
-  detalle: Cotizacion[];
-}
+// --- Deudores ---
 
 export interface DeudaEntidad {
   entidad: string;
   situacion: number;
   fechaSit1?: string;
-  monto: number;            // en miles de pesos
+  monto: number; // miles de pesos
   diasAtrasoPago?: number;
   refinanciaciones?: boolean;
   recategorizacionOblig?: boolean;
@@ -70,7 +86,7 @@ export interface DeudaEntidad {
 }
 
 export interface DeudaPeriodo {
-  periodo: string;          // YYYYMM
+  periodo: string; // YYYYMM
   entidades: DeudaEntidad[];
 }
 
@@ -109,16 +125,124 @@ export interface ChequesResponse {
   causales: ChequeEntidad[];
 }
 
-// ---------- Helper ----------
+// --- Cheques denunciados ---
+
+export interface EntidadCheques {
+  codigoEntidad: number;
+  denominacion: string;
+}
+
+export interface ChequeDenunciado {
+  numeroCheque: number;
+  denunciado: boolean;
+  fechaProcesamiento?: string;
+  denominacionEntidad?: string;
+  detalle?: string;
+  // pueden venir más campos según rechazo/denuncia
+}
+
+// --- Transparencia ---
+
+export interface CajaAhorro {
+  codigoEntidad: number;
+  descripcionEntidad: string;
+  fechaInformacion: string;
+  procesoSimplificadoDebidaDiligencia: string;
+}
+
+export interface PaqueteProducto {
+  codigoEntidad: number;
+  descripcionEntidad: string;
+  fechaInformacion: string;
+  nombreCompleto: string;
+  nombreCorto: string;
+  comisionMaximaMantenimiento: number;
+  ingresoMinimoMensual: number;
+  antiguedadLaboralMinimaMeses: number;
+  edadMaximaSolicitada: number;
+  beneficiarios: string;
+  segmento: string;
+  productosIntegrantes: string;
+  territorioValidez: string;
+  masInformacion: string | null;
+}
+
+export interface PlazoFijo {
+  codigoEntidad: number;
+  descripcionEntidad: string;
+  fechaInformacion: string;
+  nombreCompleto: string;
+  nombreCorto: string;
+  denominacion: string | null;
+  montoMinimoInvertir: number;
+  plazoMinimoInvertirDias: number;
+  canalConstitucion: string;
+  tasaEfectivaAnualMinima: number;
+  territorioValidez: string;
+  masInformacion: string | null;
+}
+
+export interface Prestamo {
+  codigoEntidad: number;
+  descripcionEntidad: string;
+  fechaInformacion: string;
+  nombreCompleto: string;
+  nombreCorto: string;
+  denominacion: string;
+  montoMinimoOtorgable?: number;
+  montoMaximoOtorgable: number;
+  plazoMaximoOtorgable: number;
+  ingresoMinimoMensual: number;
+  antiguedadLaboralMinimaMeses: number;
+  edadMaximaSolicitada: number;
+  relacionCuotaIngreso: number;
+  relacionMontoTasacion?: number; // hipotecarios y prendarios
+  destinoFondos?: string;
+  beneficiario: string;
+  cargoMaximoCancelacionAnticipada: number;
+  tasaEfectivaAnualMaxima: number;
+  tipoTasa: string;
+  costoFinancieroEfectivoTotalMaximo: number;
+  cuotaInicial: number;
+  territorioValidez: string;
+  masInformacion: string | null;
+}
+
+export interface Tarjeta {
+  codigoEntidad: number;
+  descripcionEntidad: string;
+  fechaInformacion: string;
+  nombreCompleto: string;
+  nombreCorto: string;
+  comisionMaximaAdministracionMantenimiento: number;
+  comisionMaximaRenovacion: number;
+  tasaEfectivaAnualMaximaFinanciacion: number;
+  tasaEfectivaAnualMaximaAdelantoEfectivo: number;
+  ingresoMinimoMensual: number;
+  antiguedadLaboralMinimaMeses: number;
+  edadMaximaSolicitada: number;
+  segmento: string;
+  territorioValidez: string;
+  masInformacion: string | null;
+}
+
+// ======================================================================
+//   Helper
+// ======================================================================
+
+export class BcraError extends Error {
+  status: number;
+  constructor(msg: string, status: number) {
+    super(msg);
+    this.status = status;
+  }
+}
 
 async function bcraFetch<T>(path: string, revalidate: number): Promise<T> {
   const url = `${BCRA_BASE}${path}`;
   const res = await fetch(url, {
     next: { revalidate },
-    headers: {
-      "Accept-Language": "es-AR",
-      "User-Agent": "panel-bcra/1.0",
-    },
+    headers: { "Accept-Language": "es-AR", "User-Agent": "panel-bcra/2.0" },
   });
 
   if (res.status === 404) {
@@ -134,19 +258,13 @@ async function bcraFetch<T>(path: string, revalidate: number): Promise<T> {
   return (await res.json()) as T;
 }
 
-export class BcraError extends Error {
-  status: number;
-  constructor(msg: string, status: number) {
-    super(msg);
-    this.status = status;
-  }
-}
-
-// ---------- Estadísticas Monetarias (v3.0) ----------
+// ======================================================================
+//   Estadísticas Monetarias v4.0
+// ======================================================================
 
 export async function getVariables(): Promise<Variable[]> {
   const data = await bcraFetch<{ results: Variable[] }>(
-    "/estadisticas/v3.0/Monetarias",
+    "/estadisticas/v4.0/monetarias?limit=3000",
     TTL.variables,
   );
   return data.results ?? [];
@@ -162,27 +280,19 @@ export async function getSerie(
   if (desde) params.set("desde", desde);
   if (hasta) params.set("hasta", hasta);
   params.set("limit", String(limit));
-
   const qs = params.toString() ? `?${params}` : "";
-  const data = await bcraFetch<{ results: SeriePoint[] }>(
-    `/estadisticas/v3.0/Monetarias/${idVariable}${qs}`,
+
+  const data = await bcraFetch<{ results: SerieRawResult[] }>(
+    `/estadisticas/v4.0/monetarias/${idVariable}${qs}`,
     TTL.serie,
   );
-  return data.results ?? [];
+  const detalle = data.results?.[0]?.detalle ?? [];
+  return [...detalle].sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
-// ---------- Estadísticas Cambiarias ----------
-
-export async function getCotizaciones(fecha?: string): Promise<CotizacionesResponse> {
-  const qs = fecha ? `?fecha=${fecha}` : "";
-  const data = await bcraFetch<{ results: CotizacionesResponse }>(
-    `/estadisticascambiarias/v1.0/Cotizaciones${qs}`,
-    TTL.cotizaciones,
-  );
-  return data.results;
-}
-
-// ---------- Central de Deudores ----------
+// ======================================================================
+//   Central de Deudores v1.0
+// ======================================================================
 
 export function normalizeCuit(raw: string): string {
   const digits = raw.replace(/\D/g, "");
@@ -219,7 +329,92 @@ export async function getChequesRechazados(cuit: string): Promise<ChequesRespons
   return data.results;
 }
 
-// ---------- Helpers de presentación ----------
+// ======================================================================
+//   Cheques Denunciados v1.0
+// ======================================================================
+
+export async function getEntidadesCheques(): Promise<EntidadCheques[]> {
+  const data = await bcraFetch<{ results: EntidadCheques[] }>(
+    "/cheques/v1.0/entidades",
+    TTL.entidades,
+  );
+  return data.results ?? [];
+}
+
+export async function consultarChequeDenunciado(
+  codigoEntidad: number,
+  numeroCheque: number,
+): Promise<ChequeDenunciado> {
+  const data = await bcraFetch<{ results: ChequeDenunciado }>(
+    `/cheques/v1.0/denunciados/${codigoEntidad}/${numeroCheque}`,
+    60 * 5, // 5 min, son consultas únicas
+  );
+  return data.results;
+}
+
+// ======================================================================
+//   Régimen de Transparencia v1.0
+// ======================================================================
+
+export async function getCajasAhorros(): Promise<CajaAhorro[]> {
+  const data = await bcraFetch<{ results: CajaAhorro[] }>(
+    "/transparencia/v1.0/CajasAhorros",
+    TTL.transparencia,
+  );
+  return data.results ?? [];
+}
+
+export async function getPaquetesProductos(): Promise<PaqueteProducto[]> {
+  const data = await bcraFetch<{ results: PaqueteProducto[] }>(
+    "/transparencia/v1.0/PaquetesProductos",
+    TTL.transparencia,
+  );
+  return data.results ?? [];
+}
+
+export async function getPlazosFijos(): Promise<PlazoFijo[]> {
+  const data = await bcraFetch<{ results: PlazoFijo[] }>(
+    "/transparencia/v1.0/PlazosFijos",
+    TTL.transparencia,
+  );
+  return data.results ?? [];
+}
+
+export async function getPrestamosPersonales(): Promise<Prestamo[]> {
+  const data = await bcraFetch<{ results: Prestamo[] }>(
+    "/transparencia/v1.0/Prestamos/Personales",
+    TTL.transparencia,
+  );
+  return data.results ?? [];
+}
+
+export async function getPrestamosHipotecarios(): Promise<Prestamo[]> {
+  const data = await bcraFetch<{ results: Prestamo[] }>(
+    "/transparencia/v1.0/Prestamos/Hipotecarios",
+    TTL.transparencia,
+  );
+  return data.results ?? [];
+}
+
+export async function getPrestamosPrendarios(): Promise<Prestamo[]> {
+  const data = await bcraFetch<{ results: Prestamo[] }>(
+    "/transparencia/v1.0/Prestamos/Prendarios",
+    TTL.transparencia,
+  );
+  return data.results ?? [];
+}
+
+export async function getTarjetasCredito(): Promise<Tarjeta[]> {
+  const data = await bcraFetch<{ results: Tarjeta[] }>(
+    "/transparencia/v1.0/TarjetasCredito",
+    TTL.transparencia,
+  );
+  return data.results ?? [];
+}
+
+// ======================================================================
+//   Helpers de presentación
+// ======================================================================
 
 const SITUACIONES: Record<number, { label: string; tone: "ok" | "warn" | "bad" }> = {
   1: { label: "Situación normal", tone: "ok" },
@@ -247,4 +442,22 @@ export function formatNumber(valor: number, decimals = 2): string {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(valor);
+}
+
+export function formatPct(valor: number): string {
+  return `${formatNumber(valor)}%`;
+}
+
+/** Limpia nombres de banco "BANCO DE GALICIA Y BUENOS AIRES S.A.U." → "Banco Galicia". */
+export function shortBankName(name: string): string {
+  if (!name) return "—";
+  return name
+    .replace(/\bS\.?A\.?U?\.?\b/gi, "")
+    .replace(/\bSOCIEDAD ANÓNIMA\b/gi, "")
+    .replace(/\bBANCO DE LA\b/gi, "Banco")
+    .replace(/\bBANCO DEL?\b/gi, "Banco")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }

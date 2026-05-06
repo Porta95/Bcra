@@ -4,16 +4,7 @@ import { useMemo, useState } from "react";
 import VariableCard from "./VariableCard";
 import type { Variable } from "@/lib/bcra";
 
-// IDs de variables que destacamos arriba como "headlines"
-const HIGHLIGHT_IDS = [
-  1,   // Reservas internacionales
-  4,   // Tipo de cambio minorista
-  5,   // Tipo de cambio mayorista
-  15,  // Base monetaria
-  6,   // Tasa BADLAR
-  27,  // Inflación mensual
-  28,  // Inflación interanual
-];
+const PRINCIPALES = "Principales Variables";
 
 interface Props {
   variables: Variable[];
@@ -33,12 +24,9 @@ export default function VariablesGrid({ variables }: Props) {
       return { highlights: [], rest: filtered };
     }
 
-    const highlights = HIGHLIGHT_IDS
-      .map((id) => filtered.find((v) => v.idVariable === id))
-      .filter((v): v is Variable => Boolean(v));
-    const highlightSet = new Set(highlights.map((v) => v.idVariable));
-    const rest = filtered.filter((v) => !highlightSet.has(v.idVariable));
-
+    // Categoría "Principales Variables" arriba (definida por el BCRA en v4)
+    const highlights = filtered.filter((v) => v.categoria === PRINCIPALES);
+    const rest = filtered.filter((v) => v.categoria !== PRINCIPALES);
     return { highlights, rest };
   }, [query, variables]);
 
@@ -79,9 +67,19 @@ export default function VariablesGrid({ variables }: Props) {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {rest.map((v, i) => (
-            <VariableCard key={v.idVariable} v={v} delay={Math.min(i, 20) * 20} />
+          {rest.slice(0, 200).map((v, i) => (
+            <VariableCard
+              key={v.idVariable}
+              v={v}
+              delay={Math.min(i, 20) * 20}
+            />
           ))}
+        </div>
+      )}
+      {!query && rest.length > 200 && (
+        <div className="mt-6 text-center text-xs text-muted">
+          Mostrando 200 de {rest.length} series. Usá el buscador para encontrar
+          una específica.
         </div>
       )}
     </>

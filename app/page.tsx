@@ -1,31 +1,64 @@
-import { getVariables } from "@/lib/bcra";
-import VariablesGrid from "@/components/VariablesGrid";
+import {
+  getCajasAhorros,
+  getPaquetesProductos,
+  getPlazosFijos,
+  getPrestamosHipotecarios,
+  getPrestamosPersonales,
+  getPrestamosPrendarios,
+  getTarjetasCredito,
+} from "@/lib/bcra";
+import TransparenciaTable, { TIPOS, type Tipo } from "@/components/TransparenciaTable";
+import TipoSelector from "@/components/TipoSelector";
 
-// Re-renderea cada 30 minutos en el edge de Vercel
-export const revalidate = 1800;
+export const revalidate = 21600; // 6h
 
-export default async function Home() {
+const FETCHERS: Record<Tipo, () => Promise<any[]>> = {
+  "plazos-fijos": getPlazosFijos,
+  "personales": getPrestamosPersonales,
+  "hipotecarios": getPrestamosHipotecarios,
+  "prendarios": getPrestamosPrendarios,
+  "tarjetas": getTarjetasCredito,
+  "cajas": getCajasAhorros,
+  "paquetes": getPaquetesProductos,
+};
+
+function isTipo(s: string | undefined): s is Tipo {
+  return TIPOS.some((t) => t.id === s);
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: { tipo?: string };
+}) {
+  const tipo: Tipo = isTipo(searchParams.tipo) ? searchParams.tipo : "plazos-fijos";
+  const tipoLabel = TIPOS.find((t) => t.id === tipo)?.label ?? "";
+
+  let data: any[] = [];
   let error: string | null = null;
-  let variables: Awaited<ReturnType<typeof getVariables>> = [];
-
   try {
-    variables = await getVariables();
+    data = await FETCHERS[tipo]();
   } catch (e) {
     error = e instanceof Error ? e.message : "Error desconocido";
   }
 
   return (
     <div>
-      <div className="mb-8 flex items-baseline justify-between">
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl tracking-tight">
-            Macro <span className="italic text-accent">Argentina</span>
-          </h1>
-          <p className="text-xs text-muted mt-1 uppercase tracking-widest">
-            Variables principales del Banco Central
-          </p>
+      <div className="mb-6 border-l-2 border-accent pl-4">
+        <div className="text-[10px] uppercase tracking-widest text-muted">
+          Régimen de Transparencia · BCRA
         </div>
+        <h1 className="font-display text-3xl md:text-4xl tracking-tight mt-1">
+          Comparador <span className="italic text-accent">{tipoLabel}</span>
+        </h1>
+        <p className="text-xs text-muted mt-3 max-w-2xl leading-relaxed">
+          Datos publicados por las entidades financieras según la normativa del
+          BCRA. Tasas, comisiones y condiciones declaradas. Tocá los encabezados
+          para ordenar.
+        </p>
       </div>
+
+      <TipoSelector active={tipo} />
 
       {error ? (
         <div className="border border-red/30 bg-red/5 p-4 text-sm">
@@ -33,7 +66,7 @@ export default async function Home() {
           <div className="text-muted text-xs">{error}</div>
         </div>
       ) : (
-        <VariablesGrid variables={variables} />
+        <TransparenciaTable tipo={tipo} data={data} />
       )}
     </div>
   );

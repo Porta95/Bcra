@@ -23,7 +23,9 @@ export default function VariableCard({ v, highlight, delay = 0 }: Props) {
         <span className="text-[10px] uppercase tracking-widest text-muted leading-tight">
           #{v.idVariable}
         </span>
-        <span className="text-[10px] text-muted tabular">{v.fecha}</span>
+        <span className="text-[10px] text-muted tabular">
+          {v.ultFechaInformada}
+        </span>
       </div>
       <h3
         className={`text-xs leading-snug mb-3 line-clamp-2 ${
@@ -37,8 +39,13 @@ export default function VariableCard({ v, highlight, delay = 0 }: Props) {
           highlight ? "text-accent text-2xl" : "text-ink text-xl"
         }`}
       >
-        {formatNumber(v.valor)}
+        {formatNumber(v.ultValorInformado)}
       </div>
+      {v.unidadExpresion && (
+        <div className="text-[10px] text-muted mt-1 truncate">
+          {v.unidadExpresion}
+        </div>
+      )}
       <div className="mt-2 h-px bg-border group-hover:bg-accent/40 transition-colors" />
     </Link>
   );
