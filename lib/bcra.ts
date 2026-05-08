@@ -1,15 +1,20 @@
 /**
  * Cliente para las APIs públicas del BCRA.
  *
+ * Nota sobre cache:
+ * Los endpoints de Régimen de Transparencia devuelven payloads grandes (miles
+ * de combinaciones banco x producto x canal x territorio) que pueden superar
+ * los 2 MB que tolera el Data Cache de Next.js. Por eso usamos
+ * `cache: 'force-cache'` con headers HTTP en vez de `next.revalidate`, que
+ * delega el cache al CDN (sin el límite de 2 MB) en lugar de al fs interno
+ * de Next.js. Para los endpoints chicos (variables, deudas, cheques) seguimos
+ * usando `revalidate` que es más eficiente.
+ *
  * Endpoints oficiales (sin autenticación):
  *
  * Estadísticas Monetarias v4.0
- *  - GET /estadisticas/v4.0/monetarias                       (listado de variables)
+ *  - GET /estadisticas/v4.0/monetarias                       (listado)
  *  - GET /estadisticas/v4.0/monetarias/{id}                  (serie histórica)
- *  - GET /estadisticas/v4.0/metodologia/{id}                 (descripción)
- *
- * Estadísticas Cambiarias v1.0
- *  - GET /estadisticascambiarias/v1.0/Cotizaciones
  *
  * Central de Deudores v1.0
  *  - GET /centraldedeudores/v1.0/Deudas/{cuit}
@@ -24,9 +29,7 @@
  *  - GET /transparencia/v1.0/CajasAhorros
  *  - GET /transparencia/v1.0/PaquetesProductos
  *  - GET /transparencia/v1.0/PlazosFijos
- *  - GET /transparencia/v1.0/Prestamos/Personales
- *  - GET /transparencia/v1.0/Prestamos/Hipotecarios
- *  - GET /transparencia/v1.0/Prestamos/Prendarios
+ *  - GET /transparencia/v1.0/Prestamos/{Personales|Hipotecarios|Prendarios}
  *  - GET /transparencia/v1.0/TarjetasCredito
  */
 
@@ -35,11 +38,9 @@ const BCRA_BASE = "https://api.bcra.gob.ar";
 export const TTL = {
   variables: 60 * 30,
   serie: 60 * 30,
-  cotizaciones: 60 * 15,
   deudores: 60 * 60 * 6,
   cheques: 60 * 60 * 6,
-  entidades: 60 * 60 * 24, // listas estables, 1 día
-  transparencia: 60 * 60 * 6, // bancos actualizan ocasionalmente
+  entidades: 60 * 60 * 24,
 };
 
 // ======================================================================
@@ -69,13 +70,11 @@ interface SerieRawResult {
   detalle: SeriePoint[];
 }
 
-// --- Deudores ---
-
 export interface DeudaEntidad {
   entidad: string;
   situacion: number;
   fechaSit1?: string;
-  monto: number; // miles de pesos
+  monto: number;
   diasAtrasoPago?: number;
   refinanciaciones?: boolean;
   recategorizacionOblig?: boolean;
@@ -86,7 +85,7 @@ export interface DeudaEntidad {
 }
 
 export interface DeudaPeriodo {
-  periodo: string; // YYYYMM
+  periodo: string;
   entidades: DeudaEntidad[];
 }
 
@@ -125,8 +124,6 @@ export interface ChequesResponse {
   causales: ChequeEntidad[];
 }
 
-// --- Cheques denunciados ---
-
 export interface EntidadCheques {
   codigoEntidad: number;
   denominacion: string;
@@ -138,10 +135,7 @@ export interface ChequeDenunciado {
   fechaProcesamiento?: string;
   denominacionEntidad?: string;
   detalle?: string;
-  // pueden venir más campos según rechazo/denuncia
 }
-
-// --- Transparencia ---
 
 export interface CajaAhorro {
   codigoEntidad: number;
@@ -196,7 +190,7 @@ export interface Prestamo {
   antiguedadLaboralMinimaMeses: number;
   edadMaximaSolicitada: number;
   relacionCuotaIngreso: number;
-  relacionMontoTasacion?: number; // hipotecarios y prendarios
+  relacionMontoTasacion?: number;
   destinoFondos?: string;
   beneficiario: string;
   cargoMaximoCancelacionAnticipada: number;
@@ -227,7 +221,7 @@ export interface Tarjeta {
 }
 
 // ======================================================================
-//   Helper
+//   Helpers
 // ======================================================================
 
 export class BcraError extends Error {
@@ -238,6 +232,9 @@ export class BcraError extends Error {
   }
 }
 
+/**
+ * Fetch para endpoints "chicos" - usa el Data Cache de Next.js (límite 2 MB).
+ */
 async function bcraFetch<T>(path: string, revalidate: number): Promise<T> {
   const url = `${BCRA_BASE}${path}`;
   const res = await fetch(url, {
@@ -245,9 +242,31 @@ async function bcraFetch<T>(path: string, revalidate: number): Promise<T> {
     headers: { "Accept-Language": "es-AR", "User-Agent": "panel-bcra/2.0" },
   });
 
-  if (res.status === 404) {
-    throw new BcraError("No encontrado", 404);
+  if (res.status === 404) throw new BcraError("No encontrado", 404);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new BcraError(
+      `BCRA respondió ${res.status}: ${txt.slice(0, 200)}`,
+      res.status,
+    );
   }
+  return (await res.json()) as T;
+}
+
+/**
+ * Fetch para endpoints "grandes" (Régimen de Transparencia). Evita el
+ * Data Cache de Next.js (límite 2 MB) usando `cache: 'no-store'`. Confiamos
+ * en el cache de la página (`revalidate` a nivel page.tsx) y en que el ISR
+ * de Vercel sirva la HTML pre-renderizada desde el CDN.
+ */
+async function bcraFetchLarge<T>(path: string): Promise<T> {
+  const url = `${BCRA_BASE}${path}`;
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { "Accept-Language": "es-AR", "User-Agent": "panel-bcra/2.0" },
+  });
+
+  if (res.status === 404) throw new BcraError("No encontrado", 404);
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     throw new BcraError(
@@ -263,6 +282,7 @@ async function bcraFetch<T>(path: string, revalidate: number): Promise<T> {
 // ======================================================================
 
 export async function getVariables(): Promise<Variable[]> {
+  // ~1100 variables; el JSON pesa <1MB, entra en el data cache.
   const data = await bcraFetch<{ results: Variable[] }>(
     "/estadisticas/v4.0/monetarias?limit=3000",
     TTL.variables,
@@ -347,69 +367,148 @@ export async function consultarChequeDenunciado(
 ): Promise<ChequeDenunciado> {
   const data = await bcraFetch<{ results: ChequeDenunciado }>(
     `/cheques/v1.0/denunciados/${codigoEntidad}/${numeroCheque}`,
-    60 * 5, // 5 min, son consultas únicas
+    60 * 5,
   );
   return data.results;
 }
 
 // ======================================================================
 //   Régimen de Transparencia v1.0
+//
+//   Estos endpoints traen mucha duplicación (mismo producto declarado
+//   por canal y territorio). Deduplicamos en el server para que el
+//   payload que llega al cliente sea manejable.
 // ======================================================================
 
+/**
+ * Reduce duplicados de productos transparencia.
+ *
+ * Las entidades declaran el mismo producto repetido por cada combinación
+ * de territorio/canal. Para el comparador quedamos con la mejor entrada
+ * por (entidad + nombreCorto + denominacion).
+ */
+function dedup<T extends Record<string, any>>(
+  rows: T[],
+  keyFn: (r: T) => string,
+  betterFn?: (a: T, b: T) => T,
+): T[] {
+  const map = new Map<string, T>();
+  for (const r of rows) {
+    const k = keyFn(r);
+    const prev = map.get(k);
+    if (!prev) {
+      map.set(k, r);
+    } else if (betterFn) {
+      map.set(k, betterFn(prev, r));
+    }
+  }
+  return Array.from(map.values());
+}
+
 export async function getCajasAhorros(): Promise<CajaAhorro[]> {
-  const data = await bcraFetch<{ results: CajaAhorro[] }>(
+  const data = await bcraFetchLarge<{ results: CajaAhorro[] }>(
     "/transparencia/v1.0/CajasAhorros",
-    TTL.transparencia,
   );
   return data.results ?? [];
 }
 
 export async function getPaquetesProductos(): Promise<PaqueteProducto[]> {
-  const data = await bcraFetch<{ results: PaqueteProducto[] }>(
+  const data = await bcraFetchLarge<{ results: PaqueteProducto[] }>(
     "/transparencia/v1.0/PaquetesProductos",
-    TTL.transparencia,
   );
-  return data.results ?? [];
+  const rows = data.results ?? [];
+  return dedup(
+    rows,
+    (r) => `${r.codigoEntidad}|${r.nombreCorto}|${r.segmento}`,
+    (a, b) =>
+      (a.comisionMaximaMantenimiento ?? Infinity) <
+      (b.comisionMaximaMantenimiento ?? Infinity)
+        ? a
+        : b,
+  );
 }
 
 export async function getPlazosFijos(): Promise<PlazoFijo[]> {
-  const data = await bcraFetch<{ results: PlazoFijo[] }>(
+  const data = await bcraFetchLarge<{ results: PlazoFijo[] }>(
     "/transparencia/v1.0/PlazosFijos",
-    TTL.transparencia,
   );
-  return data.results ?? [];
+  const rows = data.results ?? [];
+  // Quedo con la mejor TEA por (entidad + producto + denominación)
+  return dedup(
+    rows,
+    (r) => `${r.codigoEntidad}|${r.nombreCorto}|${r.denominacion ?? "-"}`,
+    (a, b) =>
+      (a.tasaEfectivaAnualMinima ?? 0) > (b.tasaEfectivaAnualMinima ?? 0)
+        ? a
+        : b,
+  );
 }
 
 export async function getPrestamosPersonales(): Promise<Prestamo[]> {
-  const data = await bcraFetch<{ results: Prestamo[] }>(
+  const data = await bcraFetchLarge<{ results: Prestamo[] }>(
     "/transparencia/v1.0/Prestamos/Personales",
-    TTL.transparencia,
   );
-  return data.results ?? [];
+  const rows = data.results ?? [];
+  // Quedo con la TEA más baja (mejor para el deudor)
+  return dedup(
+    rows,
+    (r) => `${r.codigoEntidad}|${r.nombreCorto}|${r.denominacion}|${r.beneficiario}`,
+    (a, b) =>
+      (a.tasaEfectivaAnualMaxima ?? Infinity) <
+      (b.tasaEfectivaAnualMaxima ?? Infinity)
+        ? a
+        : b,
+  );
 }
 
 export async function getPrestamosHipotecarios(): Promise<Prestamo[]> {
-  const data = await bcraFetch<{ results: Prestamo[] }>(
+  const data = await bcraFetchLarge<{ results: Prestamo[] }>(
     "/transparencia/v1.0/Prestamos/Hipotecarios",
-    TTL.transparencia,
   );
-  return data.results ?? [];
+  const rows = data.results ?? [];
+  return dedup(
+    rows,
+    (r) =>
+      `${r.codigoEntidad}|${r.nombreCorto}|${r.denominacion}|${r.destinoFondos ?? ""}`,
+    (a, b) =>
+      (a.tasaEfectivaAnualMaxima ?? Infinity) <
+      (b.tasaEfectivaAnualMaxima ?? Infinity)
+        ? a
+        : b,
+  );
 }
 
 export async function getPrestamosPrendarios(): Promise<Prestamo[]> {
-  const data = await bcraFetch<{ results: Prestamo[] }>(
+  const data = await bcraFetchLarge<{ results: Prestamo[] }>(
     "/transparencia/v1.0/Prestamos/Prendarios",
-    TTL.transparencia,
   );
-  return data.results ?? [];
+  const rows = data.results ?? [];
+  return dedup(
+    rows,
+    (r) =>
+      `${r.codigoEntidad}|${r.nombreCorto}|${r.denominacion}|${r.destinoFondos ?? ""}`,
+    (a, b) =>
+      (a.tasaEfectivaAnualMaxima ?? Infinity) <
+      (b.tasaEfectivaAnualMaxima ?? Infinity)
+        ? a
+        : b,
+  );
 }
 
 export async function getTarjetasCredito(): Promise<Tarjeta[]> {
-  const data = await bcraFetch<{ results: Tarjeta[] }>(
+  const data = await bcraFetchLarge<{ results: Tarjeta[] }>(
     "/transparencia/v1.0/TarjetasCredito",
-    TTL.transparencia,
   );
-  return data.results ?? [];
+  const rows = data.results ?? [];
+  return dedup(
+    rows,
+    (r) => `${r.codigoEntidad}|${r.nombreCorto}|${r.segmento}`,
+    (a, b) =>
+      (a.tasaEfectivaAnualMaximaFinanciacion ?? Infinity) <
+      (b.tasaEfectivaAnualMaximaFinanciacion ?? Infinity)
+        ? a
+        : b,
+  );
 }
 
 // ======================================================================
@@ -448,7 +547,6 @@ export function formatPct(valor: number): string {
   return `${formatNumber(valor)}%`;
 }
 
-/** Limpia nombres de banco "BANCO DE GALICIA Y BUENOS AIRES S.A.U." → "Banco Galicia". */
 export function shortBankName(name: string): string {
   if (!name) return "—";
   return name
