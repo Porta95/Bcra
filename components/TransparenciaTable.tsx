@@ -2,27 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { formatARS, formatNumber, formatPct, shortBankName } from "@/lib/bcra";
-
-// ---- Configuración de tipos de productos y columnas ----
-
-type Tipo =
-  | "plazos-fijos"
-  | "personales"
-  | "hipotecarios"
-  | "prendarios"
-  | "tarjetas"
-  | "cajas"
-  | "paquetes";
-
-const TIPOS: { id: Tipo; label: string; corto: string }[] = [
-  { id: "plazos-fijos", label: "Plazos Fijos", corto: "PF" },
-  { id: "personales", label: "Préstamos Personales", corto: "PP" },
-  { id: "hipotecarios", label: "Préstamos Hipotecarios", corto: "PH" },
-  { id: "prendarios", label: "Préstamos Prendarios", corto: "PR" },
-  { id: "tarjetas", label: "Tarjetas de Crédito", corto: "TC" },
-  { id: "cajas", label: "Cajas de Ahorro", corto: "CA" },
-  { id: "paquetes", label: "Paquetes", corto: "PQ" },
-];
+import { TIPOS, type Tipo } from "@/lib/transparencia";
 
 interface Column<T> {
   key: string;
@@ -409,5 +389,3 @@ export default function TransparenciaTable({ tipo, data }: Props) {
   );
 }
 
-export { TIPOS };
-export type { Tipo };

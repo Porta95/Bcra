@@ -7,8 +7,9 @@ import {
   getPrestamosPrendarios,
   getTarjetasCredito,
 } from "@/lib/bcra";
-import TransparenciaTable, { TIPOS, type Tipo } from "@/components/TransparenciaTable";
+import TransparenciaTable from "@/components/TransparenciaTable";
 import TipoSelector from "@/components/TipoSelector";
+import { TIPOS, type Tipo } from "@/lib/transparencia";
 
 export const revalidate = 21600; // 6h
 

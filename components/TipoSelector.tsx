@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { TIPOS, type Tipo } from "./TransparenciaTable";
+import { TIPOS, type Tipo } from "@/lib/transparencia";
 
 export default function TipoSelector({ active }: { active: Tipo }) {
   return (
