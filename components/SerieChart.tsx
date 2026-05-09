@@ -26,7 +26,7 @@ const RANGES = [
 ] as const;
 
 export default function SerieChart({ data }: Props) {
-  const [rangeIdx, setRangeIdx] = useState(2); // default: 1 año
+  const [rangeIdx, setRangeIdx] = useState(2);
 
   const filtered = useMemo(() => {
     const days = RANGES[rangeIdx].days;
@@ -41,12 +41,19 @@ export default function SerieChart({ data }: Props) {
     const last = filtered[filtered.length - 1].valor;
     const min = Math.min(...filtered.map((p) => p.valor));
     const max = Math.max(...filtered.map((p) => p.valor));
+    const promedio =
+      filtered.reduce((acc, p) => acc + p.valor, 0) / filtered.length;
     const change = first === 0 ? 0 : ((last - first) / Math.abs(first)) * 100;
-    return { first, last, min, max, change };
+    const ultimaFecha = filtered[filtered.length - 1].fecha;
+    return { first, last, min, max, promedio, change, ultimaFecha };
   }, [filtered]);
 
   if (filtered.length === 0) {
-    return <div className="text-muted text-sm py-12 text-center">Sin datos</div>;
+    return (
+      <div className="empty-state">
+        El BCRA no publicó datos en este rango. Probá con un período más largo.
+      </div>
+    );
   }
 
   const positive = stats && stats.change >= 0;
@@ -54,35 +61,49 @@ export default function SerieChart({ data }: Props) {
   return (
     <div>
       <div className="flex items-end justify-between mb-4 gap-4 flex-wrap">
-        <div>
+        <div className="min-w-0">
           <div className="text-3xl md:text-4xl font-bold tabular text-accent leading-none">
             {formatNumber(stats!.last)}
           </div>
           <div
             className={`text-sm tabular mt-2 ${
-              positive ? "text-green" : "text-red"
+              positive ? "text-ok" : "text-danger"
             }`}
           >
-            {positive ? "▲" : "▼"} {formatNumber(Math.abs(stats!.change))}%
+            <span aria-hidden="true">{positive ? "▲" : "▼"}</span>{" "}
+            {formatNumber(Math.abs(stats!.change))}%
             <span className="text-muted ml-2 normal-case">
               en {RANGES[rangeIdx].label}
             </span>
           </div>
+          <div className="text-[10px] uppercase tracking-widest text-muted mt-1 tabular">
+            Última publicación: {stats!.ultimaFecha}
+          </div>
         </div>
-        <div className="flex border border-border">
-          {RANGES.map((r, i) => (
-            <button
-              key={r.label}
-              onClick={() => setRangeIdx(i)}
-              className={`px-3 py-1.5 text-xs uppercase tracking-widest transition-colors ${
-                i === rangeIdx
-                  ? "bg-accent text-bg"
-                  : "text-muted hover:text-ink"
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
+        <div
+          role="tablist"
+          aria-label="Rango temporal"
+          className="flex border border-border divide-x divide-border"
+        >
+          {RANGES.map((r, i) => {
+            const active = i === rangeIdx;
+            return (
+              <button
+                key={r.label}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setRangeIdx(i)}
+                className={`px-3 py-1.5 text-xs uppercase tracking-widest transition-colors ${
+                  active
+                    ? "bg-accent text-bg"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                {r.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -95,16 +116,16 @@ export default function SerieChart({ data }: Props) {
                 <stop offset="100%" stopColor="#f5c518" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#1f1f1f" vertical={false} />
+            <CartesianGrid stroke="#262626" vertical={false} />
             <XAxis
               dataKey="fecha"
-              stroke="#666"
+              stroke="#8a8a8a"
               fontSize={10}
               tickLine={false}
               minTickGap={32}
             />
             <YAxis
-              stroke="#666"
+              stroke="#8a8a8a"
               fontSize={10}
               tickLine={false}
               axisLine={false}
@@ -114,11 +135,21 @@ export default function SerieChart({ data }: Props) {
             <Tooltip
               contentStyle={{
                 background: "#111",
-                border: "1px solid #1f1f1f",
+                border: "1px solid #262626",
                 fontSize: 12,
                 fontFamily: "JetBrains Mono",
               }}
-              labelStyle={{ color: "#666" }}
+              labelStyle={{ color: "#8a8a8a" }}
+              itemStyle={{
+                color: "#f5c518",
+                fontFamily: "JetBrains Mono",
+                fontVariantNumeric: "tabular-nums",
+              }}
+              cursor={{
+                stroke: "#f5c518",
+                strokeOpacity: 0.3,
+                strokeDasharray: "2 2",
+              }}
               formatter={(v: number) => [formatNumber(v), "Valor"]}
             />
             <Area
@@ -132,17 +163,27 @@ export default function SerieChart({ data }: Props) {
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-3 gap-px bg-border mt-6 border border-border">
-        <div className="bg-panel p-3">
-          <div className="text-[10px] uppercase tracking-widest text-muted">Mínimo</div>
-          <div className="tabular text-sm mt-1">{formatNumber(stats!.min)}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border mt-6 border border-border">
+        <div className="bg-panel p-3 min-w-0">
+          <div className="section-eyebrow">Mínimo</div>
+          <div className="tabular text-sm mt-1 truncate">
+            {formatNumber(stats!.min)}
+          </div>
         </div>
-        <div className="bg-panel p-3">
-          <div className="text-[10px] uppercase tracking-widest text-muted">Máximo</div>
-          <div className="tabular text-sm mt-1">{formatNumber(stats!.max)}</div>
+        <div className="bg-panel p-3 min-w-0">
+          <div className="section-eyebrow">Máximo</div>
+          <div className="tabular text-sm mt-1 truncate">
+            {formatNumber(stats!.max)}
+          </div>
         </div>
-        <div className="bg-panel p-3">
-          <div className="text-[10px] uppercase tracking-widest text-muted">Puntos</div>
+        <div className="bg-panel p-3 min-w-0">
+          <div className="section-eyebrow">Promedio</div>
+          <div className="tabular text-sm mt-1 truncate">
+            {formatNumber(stats!.promedio)}
+          </div>
+        </div>
+        <div className="bg-panel p-3 min-w-0">
+          <div className="section-eyebrow">Datos</div>
           <div className="tabular text-sm mt-1">{filtered.length}</div>
         </div>
       </div>

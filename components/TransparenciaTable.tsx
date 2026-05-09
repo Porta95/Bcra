@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { formatARS, formatNumber, formatPct, shortBankName } from "@/lib/bcra";
-import { TIPOS, type Tipo } from "@/lib/transparencia";
+import { formatARS, formatPct, shortBankName } from "@/lib/bcra";
+import { type Tipo } from "@/lib/transparencia";
 
 interface Column<T> {
   key: string;
@@ -13,7 +13,6 @@ interface Column<T> {
   render: (row: T) => React.ReactNode;
 }
 
-// Definimos columnas por tipo. Mantenemos el set chico para que entre en mobile.
 function getColumns(tipo: Tipo): Column<any>[] {
   const banco: Column<any> = {
     key: "banco",
@@ -48,7 +47,7 @@ function getColumns(tipo: Tipo): Column<any>[] {
         },
         {
           key: "tea",
-          label: "TEA mín",
+          label: "TEA (desde)",
           align: "right",
           get: (r) => r.tasaEfectivaAnualMinima,
           sort: (r) => -(r.tasaEfectivaAnualMinima ?? 0),
@@ -72,7 +71,7 @@ function getColumns(tipo: Tipo): Column<any>[] {
         },
         {
           key: "dias",
-          label: "Plazo mín",
+          label: "Plazo (días)",
           align: "right",
           get: (r) => r.plazoMinimoInvertirDias,
           sort: (r) => r.plazoMinimoInvertirDias ?? 0,
@@ -101,7 +100,7 @@ function getColumns(tipo: Tipo): Column<any>[] {
         },
         {
           key: "tea",
-          label: "TEA máx",
+          label: "TEA (hasta)",
           align: "right",
           get: (r) => r.tasaEfectivaAnualMaxima,
           sort: (r) => r.tasaEfectivaAnualMaxima ?? Infinity,
@@ -113,19 +112,19 @@ function getColumns(tipo: Tipo): Column<any>[] {
         },
         {
           key: "cft",
-          label: "CFT",
+          label: "CFT (costo total)",
           align: "right",
           get: (r) => r.costoFinancieroEfectivoTotalMaximo,
           sort: (r) => r.costoFinancieroEfectivoTotalMaximo ?? Infinity,
           render: (r) => (
-            <span className="tabular text-red">
+            <span className="tabular text-danger">
               {formatPct(r.costoFinancieroEfectivoTotalMaximo ?? 0)}
             </span>
           ),
         },
         {
           key: "max",
-          label: "Máx",
+          label: "Monto máx",
           align: "right",
           get: (r) => r.montoMaximoOtorgable,
           sort: (r) => -(r.montoMaximoOtorgable ?? 0),
@@ -137,7 +136,7 @@ function getColumns(tipo: Tipo): Column<any>[] {
         },
         {
           key: "plazo",
-          label: "Plazo",
+          label: "Plazo (meses)",
           align: "right",
           get: (r) => r.plazoMaximoOtorgable,
           sort: (r) => -(r.plazoMaximoOtorgable ?? 0),
@@ -171,7 +170,7 @@ function getColumns(tipo: Tipo): Column<any>[] {
         },
         {
           key: "mant",
-          label: "Mant.",
+          label: "Mantenimiento",
           align: "right",
           get: (r) => r.comisionMaximaAdministracionMantenimiento,
           sort: (r) => r.comisionMaximaAdministracionMantenimiento ?? Infinity,
@@ -183,7 +182,7 @@ function getColumns(tipo: Tipo): Column<any>[] {
         },
         {
           key: "renov",
-          label: "Renov.",
+          label: "Renovación",
           align: "right",
           get: (r) => r.comisionMaximaRenovacion,
           sort: (r) => r.comisionMaximaRenovacion ?? Infinity,
@@ -215,8 +214,8 @@ function getColumns(tipo: Tipo): Column<any>[] {
           render: (r) => {
             const si = r.procesoSimplificadoDebidaDiligencia === "SI";
             return (
-              <span className={si ? "text-green" : "text-muted"}>
-                {si ? "✓ Sí" : "—"}
+              <span className={si ? "text-ok" : "text-muted"}>
+                {si ? "Sí" : "—"}
               </span>
             );
           },
@@ -318,58 +317,85 @@ export default function TransparenciaTable({ tipo, data }: Props) {
 
   return (
     <>
-      <div className="mb-4 relative">
+      <div className="mb-2">
+        <label htmlFor="tabla-search" className="sr-only">
+          Buscar banco o producto
+        </label>
         <input
+          id="tabla-search"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar banco o producto..."
-          className="w-full bg-panel border border-border focus:border-accent/60 focus:outline-none px-4 py-3 text-sm placeholder:text-muted"
+          placeholder="Buscar por banco o producto"
+          className="input"
         />
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-muted tabular">
-          {filtered.length} / {data.length}
+      </div>
+      <div className="mb-4 flex items-center justify-between text-[10px] uppercase tracking-widest text-muted tabular">
+        <span>
+          Mostrando {filtered.length} de {data.length}
         </span>
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            className="btn-ghost py-1"
+          >
+            Limpiar
+          </button>
+        )}
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-muted text-sm py-12 text-center border border-border">
-          Sin resultados
+        <div className="empty-state">
+          {query
+            ? `Ningún banco coincide con "${query}".`
+            : "Sin productos para mostrar."}
         </div>
       ) : (
         <div className="border border-border overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-panel text-muted uppercase tracking-widest sticky top-0">
+          <table className="data-table">
+            <thead>
               <tr>
-                {cols.map((c) => (
-                  <th
-                    key={c.key}
-                    className={`p-2 font-normal cursor-pointer hover:text-accent select-none ${
-                      c.align === "right" ? "text-right" : "text-left"
-                    }`}
-                    onClick={() => toggleSort(c.key)}
-                  >
-                    {c.label}
-                    {sortKey === c.key && (
-                      <span className="ml-1 text-accent">
-                        {sortDir === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </th>
-                ))}
+                {cols.map((c) => {
+                  const isSorted = sortKey === c.key;
+                  return (
+                    <th
+                      key={c.key}
+                      className={`cursor-pointer hover:text-accent select-none ${
+                        c.align === "right" ? "text-right" : "text-left"
+                      }`}
+                      aria-sort={
+                        isSorted
+                          ? sortDir === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(c.key)}
+                        className="uppercase tracking-widest"
+                      >
+                        {c.label}
+                        {isSorted && (
+                          <span aria-hidden="true" className="ml-1 text-accent">
+                            {sortDir === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
               {filtered.slice(0, 500).map((row, i) => (
-                <tr
-                  key={i}
-                  className="border-t border-border hover:bg-panel/50 transition-colors"
-                >
+                <tr key={i}>
                   {cols.map((c) => (
                     <td
                       key={c.key}
-                      className={`p-2 ${
-                        c.align === "right" ? "text-right" : "text-left"
-                      }`}
+                      className={c.align === "right" ? "text-right" : "text-left"}
                     >
                       {c.render(row)}
                     </td>
@@ -388,4 +414,3 @@ export default function TransparenciaTable({ tipo, data }: Props) {
     </>
   );
 }
-

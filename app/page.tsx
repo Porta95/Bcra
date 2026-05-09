@@ -1,3 +1,4 @@
+import Script from "next/script";
 import {
   getCajasAhorros,
   getPaquetesProductos,
@@ -10,8 +11,16 @@ import {
 import TransparenciaTable from "@/components/TransparenciaTable";
 import TipoSelector from "@/components/TipoSelector";
 import { TIPOS, type Tipo } from "@/lib/transparencia";
+import type { Metadata } from "next";
 
 export const revalidate = 21600; // 6h
+
+export const metadata: Metadata = {
+  title: "Comparador BCRA — tasas y comisiones por banco",
+  description:
+    "Compará plazos fijos, préstamos, tarjetas y cajas de ahorro de todos los bancos del país. Datos oficiales del BCRA, actualizados a diario.",
+  alternates: { canonical: "/" },
+};
 
 const FETCHERS: Record<Tipo, () => Promise<any[]>> = {
   "plazos-fijos": getPlazosFijos,
@@ -26,6 +35,34 @@ const FETCHERS: Record<Tipo, () => Promise<any[]>> = {
 function isTipo(s: string | undefined): s is Tipo {
   return TIPOS.some((t) => t.id === s);
 }
+
+const websiteLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://panel-bcra.vercel.app/#website",
+      url: "https://panel-bcra.vercel.app/",
+      name: "Panel BCRA",
+      inLanguage: "es-AR",
+      description:
+        "Comparador de productos financieros, central de deudores, cheques y macro del BCRA.",
+      potentialAction: {
+        "@type": "SearchAction",
+        target:
+          "https://panel-bcra.vercel.app/deudores?cuit={search_term_string}",
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://panel-bcra.vercel.app/#org",
+      name: "Panel BCRA",
+      url: "https://panel-bcra.vercel.app/",
+      logo: "https://panel-bcra.vercel.app/opengraph-image",
+    },
+  ],
+};
 
 export default async function Home({
   searchParams,
@@ -43,32 +80,58 @@ export default async function Home({
     error = e instanceof Error ? e.message : "Error desconocido";
   }
 
+  const ultimaActualizacion =
+    data
+      .map((r) => r.fechaInformacion as string | undefined)
+      .filter((x): x is string => !!x)
+      .sort()
+      .pop() ?? null;
+
   return (
-    <div>
-      <div className="mb-6 border-l-2 border-accent pl-4">
-        <div className="text-[10px] uppercase tracking-widest text-muted">
-          Régimen de Transparencia · BCRA
+    <section aria-labelledby="comparador-title">
+      <Script
+        id="ld-home"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }}
+      />
+      <div className="mb-6 hero-rule">
+        <div className="section-eyebrow" aria-hidden="true">
+          Comparador · Datos BCRA
         </div>
-        <h1 className="font-display text-3xl md:text-4xl tracking-tight mt-1">
-          Comparador <span className="italic text-accent">{tipoLabel}</span>
+        <h1
+          id="comparador-title"
+          className="font-display text-3xl md:text-4xl tracking-tight mt-1"
+        >
+          Qué banco te conviene{" "}
+          <span className="italic text-accent">hoy</span>
         </h1>
         <p className="text-xs text-muted mt-3 max-w-2xl leading-relaxed">
-          Datos publicados por las entidades financieras según la normativa del
-          BCRA. Tasas, comisiones y condiciones declaradas. Tocá los encabezados
-          para ordenar.
+          Tasas, comisiones y montos que cada banco le declara al BCRA. Tocá una
+          columna para ordenar. Las condiciones reales pueden variar según tu
+          perfil.
         </p>
+        {!error && data.length > 0 && (
+          <div className="text-[10px] tabular text-muted mt-3 uppercase tracking-widest">
+            {tipoLabel} · {data.length} productos
+            {ultimaActualizacion && ` · actualizado ${ultimaActualizacion}`}
+          </div>
+        )}
       </div>
 
       <TipoSelector active={tipo} />
 
       {error ? (
-        <div className="border border-red/30 bg-red/5 p-4 text-sm">
-          <div className="text-red mb-1">No se pudo conectar al BCRA</div>
-          <div className="text-muted text-xs">{error}</div>
+        <div className="border border-danger/30 bg-danger/5 p-4 text-sm">
+          <div className="text-danger mb-1">
+            El BCRA no responde ahora mismo
+          </div>
+          <div className="text-muted text-xs">
+            Probá en unos minutos. Detalle: {error}
+          </div>
         </div>
       ) : (
         <TransparenciaTable tipo={tipo} data={data} />
       )}
-    </div>
+    </section>
   );
 }

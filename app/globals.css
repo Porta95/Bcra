@@ -10,37 +10,94 @@
 
 html, body {
   background: #0a0a0a;
-  color: #e8e8e8;
+  color: #ededed;
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-feature-settings: "tnum" 1, "ss01" 1;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Patrón de fondo sutil tipo cuaderno técnico */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
   z-index: 0;
 }
 
-/* Tabular numbers en todo lo que sea numérico */
 .tabular { font-variant-numeric: tabular-nums; }
 
-/* Scroll bar discreto */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #0a0a0a; }
-::-webkit-scrollbar-thumb { background: #1f1f1f; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #2a2a2a; }
+::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
 
-/* Animación de aparición escalonada para el dashboard */
+*:focus-visible {
+  outline: 2px solid #f5c518;
+  outline-offset: 2px;
+  border-radius: 1px;
+}
+button:focus-visible, a:focus-visible { outline-offset: 3px; }
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .fade-up { animation: fadeUp 0.4s ease-out backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up { animation: none; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+@layer components {
+  .input {
+    @apply w-full bg-panel border border-border focus:border-accent focus:outline-none px-4 py-3 text-sm placeholder:text-muted transition-colors;
+  }
+  .input-sm {
+    @apply w-full bg-panel border border-border focus:border-accent focus:outline-none px-3 py-2 text-xs placeholder:text-muted transition-colors;
+  }
+  .btn-primary {
+    @apply bg-accent text-bg px-6 py-3 text-xs uppercase tracking-widest font-bold hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+  }
+  .btn-ghost {
+    @apply border border-border text-muted hover:text-ink hover:border-borderStrong px-3 py-2 text-xs uppercase tracking-widest transition-colors;
+  }
+  .data-table {
+    @apply w-full text-xs;
+  }
+  .data-table thead th {
+    @apply bg-panel text-muted uppercase tracking-widest font-normal text-[10px] px-3 py-2.5 text-left;
+  }
+  .data-table tbody td {
+    @apply px-3 py-2.5 border-t border-border;
+  }
+  .data-table tbody tr {
+    @apply hover:bg-panel2 transition-colors;
+  }
+  .card {
+    @apply border border-border bg-panel p-4;
+  }
+  .card-emphasis {
+    @apply border-l-2 border-l-accent border-y border-r border-border bg-panel p-5;
+  }
+  .section-eyebrow {
+    @apply text-[10px] uppercase tracking-[0.2em] text-muted;
+  }
+  .hero-rule {
+    @apply border-l-2 border-accent pl-4;
+  }
+  .skeleton {
+    @apply bg-panel border border-border animate-pulse-bar;
+  }
+  .spinner {
+    @apply inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full;
+    animation: spin 0.7s linear infinite;
+  }
+  .empty-state {
+    @apply border border-dashed border-borderStrong text-muted text-sm py-12 text-center;
+  }
+}

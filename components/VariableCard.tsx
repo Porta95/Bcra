@@ -8,35 +8,52 @@ interface Props {
   v: Variable;
   highlight?: boolean;
   delay?: number;
+  size?: "default" | "feature";
 }
 
-export default function VariableCard({ v, highlight, delay = 0 }: Props) {
+export default function VariableCard({
+  v,
+  highlight,
+  delay = 0,
+  size = "default",
+}: Props) {
+  const isFeature = size === "feature";
   return (
     <Link
       href={`/variable/${v.idVariable}`}
-      className={`fade-up group block border ${
-        highlight ? "border-accent/40" : "border-border"
-      } bg-panel hover:border-accent/60 hover:bg-panel/80 transition-all p-4`}
+      className={`fade-up group block ${
+        isFeature
+          ? "card-emphasis hover:bg-panel2"
+          : `border ${
+              highlight ? "border-accent/40" : "border-border"
+            } bg-panel hover:border-accent/60 hover:bg-panel2 p-4`
+      } transition-all`}
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
-        <span className="text-[10px] uppercase tracking-widest text-muted leading-tight">
-          #{v.idVariable}
-        </span>
+        <span className="section-eyebrow leading-tight">#{v.idVariable}</span>
         <span className="text-[10px] text-muted tabular">
           {v.ultFechaInformada}
         </span>
       </div>
       <h3
-        className={`text-xs leading-snug mb-3 line-clamp-2 ${
-          highlight ? "text-ink" : "text-ink/90"
+        className={`leading-snug mb-3 line-clamp-2 ${
+          isFeature
+            ? "text-ink text-sm font-display italic"
+            : highlight
+            ? "text-ink text-xs"
+            : "text-ink/90 text-xs"
         }`}
       >
         {v.descripcion}
       </h3>
       <div
         className={`tabular font-bold ${
-          highlight ? "text-accent text-2xl" : "text-ink text-xl"
+          isFeature
+            ? "text-accent text-4xl"
+            : highlight
+            ? "text-accent text-2xl"
+            : "text-ink text-xl"
         }`}
       >
         {formatNumber(v.ultValorInformado)}

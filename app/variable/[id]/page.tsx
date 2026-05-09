@@ -1,8 +1,54 @@
 import Link from "next/link";
+import Script from "next/script";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getSerie, getVariables } from "@/lib/bcra";
 import SerieChart from "@/components/SerieChart";
 
 export const revalidate = 1800;
+
+export async function generateStaticParams() {
+  const vars = await getVariables().catch(() => []);
+  return vars
+    .filter((v) => /principales/i.test(v.categoria))
+    .slice(0, 60)
+    .map((v) => ({ id: String(v.idVariable) }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const id = Number(params.id);
+  if (!Number.isFinite(id)) {
+    return { title: "Variable no encontrada — Panel BCRA", robots: { index: false } };
+  }
+  const vars = await getVariables().catch(() => []);
+  const v = vars.find((x) => x.idVariable === id);
+  if (!v) {
+    return { title: "Variable no encontrada — Panel BCRA", robots: { index: false } };
+  }
+  const baseTitle = `${v.descripcion} — Panel BCRA`;
+  const title = baseTitle.length > 60 ? v.descripcion.slice(0, 60) : baseTitle;
+  const description =
+    `Serie histórica de "${v.descripcion}" del BCRA. Unidad: ${v.unidadExpresion}. Última publicación ${v.ultFechaInformada}.`.slice(
+      0,
+      155,
+    );
+  return {
+    title,
+    description,
+    alternates: { canonical: `/variable/${id}` },
+    openGraph: {
+      title,
+      description,
+      url: `/variable/${id}`,
+      type: "article",
+    },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
 
 export default async function VariablePage({
   params,
@@ -10,6 +56,7 @@ export default async function VariablePage({
   params: { id: string };
 }) {
   const id = Number(params.id);
+  if (!Number.isFinite(id)) notFound();
 
   const [variables, serie] = await Promise.all([
     getVariables().catch(() => []),
@@ -18,22 +65,105 @@ export default async function VariablePage({
 
   const meta = variables.find((v) => v.idVariable === id);
 
-  return (
-    <div>
-      <Link
-        href="/macro"
-        className="text-xs text-muted hover:text-accent uppercase tracking-widest"
-      >
-        ← Volver a Macro
-      </Link>
+  const datasetLd = meta
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        name: meta.descripcion,
+        description: `Serie ${meta.tipoSerie} (${meta.periodicidad}) publicada por el BCRA. Unidad: ${meta.unidadExpresion}. Categoría: ${meta.categoria}.`,
+        url: `https://panel-bcra.vercel.app/variable/${id}`,
+        identifier: String(id),
+        keywords: [meta.categoria, meta.descripcion, "BCRA", "Argentina"],
+        inLanguage: "es-AR",
+        isAccessibleForFree: true,
+        license: "https://www.bcra.gob.ar/",
+        creator: {
+          "@type": "GovernmentOrganization",
+          name: "Banco Central de la República Argentina",
+          url: "https://www.bcra.gob.ar/",
+        },
+        temporalCoverage: `${meta.primerFechaInformada}/${meta.ultFechaInformada}`,
+        variableMeasured: {
+          "@type": "PropertyValue",
+          name: meta.descripcion,
+          unitText: meta.unidadExpresion,
+        },
+        distribution: [
+          {
+            "@type": "DataDownload",
+            encodingFormat: "application/json",
+            contentUrl: `https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/${id}`,
+          },
+        ],
+      }
+    : null;
 
-      <div className="mt-4 mb-8 border-l-2 border-accent pl-4">
-        <div className="text-[10px] uppercase tracking-widest text-muted">
+  const breadcrumbsLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Inicio",
+        item: "https://panel-bcra.vercel.app/",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Macro",
+        item: "https://panel-bcra.vercel.app/macro",
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: meta?.descripcion ?? `Variable ${id}`,
+      },
+    ],
+  };
+
+  return (
+    <section aria-labelledby="variable-title">
+      <Script
+        id="ld-variable"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            datasetLd ? [datasetLd, breadcrumbsLd] : [breadcrumbsLd],
+          ),
+        }}
+      />
+
+      <nav aria-label="Migas de pan" className="mb-4">
+        <ol className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted">
+          <li>
+            <Link href="/" className="hover:text-accent transition-colors">
+              Inicio
+            </Link>
+          </li>
+          <li aria-hidden="true">›</li>
+          <li>
+            <Link href="/macro" className="hover:text-accent transition-colors">
+              Macro
+            </Link>
+          </li>
+          <li aria-hidden="true">›</li>
+          <li className="text-ink truncate max-w-[40ch]">
+            #{id}
+          </li>
+        </ol>
+      </nav>
+
+      <div className="mt-4 mb-8 hero-rule">
+        <div className="section-eyebrow" aria-hidden="true">
           Variable #{id}
           {meta?.categoria && <span className="ml-2">· {meta.categoria}</span>}
         </div>
-        <h1 className="font-display text-2xl md:text-3xl tracking-tight mt-1 max-w-3xl">
-          {meta?.descripcion ?? "Sin descripción"}
+        <h1
+          id="variable-title"
+          className="font-display text-2xl md:text-3xl tracking-tight mt-1 max-w-3xl"
+        >
+          {meta?.descripcion ?? "Variable sin descripción publicada"}
         </h1>
         {meta?.unidadExpresion && (
           <div className="text-xs text-muted mt-2">
@@ -43,6 +173,6 @@ export default async function VariablePage({
       </div>
 
       <SerieChart data={serie} />
-    </div>
+    </section>
   );
 }
