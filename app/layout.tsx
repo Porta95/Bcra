@@ -50,15 +50,6 @@ export const metadata: Metadata = {
   },
 };
 
-const NO_FLASH = `
-(function(){
-  try {
-    var t = localStorage.getItem('theme') || 'dark';
-    if (t === 'light') document.documentElement.dataset.theme = 'light';
-  } catch(e){}
-})();
-`;
-
 const NAV = [
   { href: "/", label: "Comparador" },
   { href: "/macro", label: "Macro" },
@@ -73,11 +64,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es-AR">
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
-      </head>
+    <html lang="es-AR" suppressHydrationWarning>
       <body className="min-h-screen relative">
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('theme');if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}",
+          }}
+        />
         <div className="relative z-10">
           <header className="border-b border-border bg-bg/80 backdrop-blur sticky top-0 z-20">
             <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
