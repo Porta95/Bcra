@@ -116,16 +116,16 @@ export default function SerieChart({ data }: Props) {
                 <stop offset="100%" stopColor="#f5c518" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#262626" vertical={false} />
+            <CartesianGrid stroke="rgba(127,127,127,0.18)" vertical={false} />
             <XAxis
               dataKey="fecha"
-              stroke="#8a8a8a"
+              stroke="rgb(140,140,140)"
               fontSize={10}
               tickLine={false}
               minTickGap={32}
             />
             <YAxis
-              stroke="#8a8a8a"
+              stroke="rgb(140,140,140)"
               fontSize={10}
               tickLine={false}
               axisLine={false}
@@ -134,12 +134,13 @@ export default function SerieChart({ data }: Props) {
             />
             <Tooltip
               contentStyle={{
-                background: "#111",
-                border: "1px solid #262626",
+                background: "rgb(20,20,20,0.96)",
+                border: "1px solid rgba(127,127,127,0.4)",
                 fontSize: 12,
                 fontFamily: "JetBrains Mono",
+                color: "#ededed",
               }}
-              labelStyle={{ color: "#8a8a8a" }}
+              labelStyle={{ color: "rgb(160,160,160)" }}
               itemStyle={{
                 color: "#f5c518",
                 fontFamily: "JetBrains Mono",

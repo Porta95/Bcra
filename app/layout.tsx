@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
+import ThemeToggle from "@/components/ThemeToggle";
+import GlobalSearch from "@/components/GlobalSearch";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://panel-bcra.vercel.app"),
@@ -48,11 +50,21 @@ export const metadata: Metadata = {
   },
 };
 
+const NO_FLASH = `
+(function(){
+  try {
+    var t = localStorage.getItem('theme') || 'dark';
+    if (t === 'light') document.documentElement.dataset.theme = 'light';
+  } catch(e){}
+})();
+`;
+
 const NAV = [
   { href: "/", label: "Comparador" },
+  { href: "/macro", label: "Macro" },
   { href: "/deudores", label: "Deudores" },
   { href: "/cheques", label: "Cheques" },
-  { href: "/macro", label: "Macro" },
+  { href: "/contexto", label: "Contexto" },
 ];
 
 export default function RootLayout({
@@ -62,10 +74,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es-AR">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
+      </head>
       <body className="min-h-screen relative">
         <div className="relative z-10">
           <header className="border-b border-border bg-bg/80 backdrop-blur sticky top-0 z-20">
-            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
               <Link
                 href="/"
                 aria-label="Panel BCRA — Inicio"
@@ -75,10 +90,18 @@ export default function RootLayout({
                   aria-hidden="true"
                   className="inline-block w-1.5 h-3.5 bg-accent"
                 />
-                <span className="font-display italic text-lg tracking-tight">
+                <span className="font-display italic text-lg tracking-tight hidden sm:inline">
                   Panel <span className="text-accent">BCRA</span>
                 </span>
+                <span className="font-display italic text-lg tracking-tight sm:hidden">
+                  <span className="text-accent">BCRA</span>
+                </span>
               </Link>
+
+              <div className="flex-1 min-w-0 hidden md:block">
+                <GlobalSearch />
+              </div>
+
               <nav
                 aria-label="Principal"
                 className="relative flex gap-0 text-[10px] sm:text-xs uppercase tracking-widest overflow-x-auto"
@@ -87,7 +110,7 @@ export default function RootLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="px-2 sm:px-3 py-2.5 sm:py-2 hover:text-accent transition-colors whitespace-nowrap"
+                    className="px-2 sm:px-3 py-2.5 sm:py-2 hover:text-accent transition-colors whitespace-nowrap text-muted"
                   >
                     {item.label}
                   </Link>
@@ -97,6 +120,13 @@ export default function RootLayout({
                   className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-bg to-transparent sm:hidden"
                 />
               </nav>
+
+              <ThemeToggle />
+            </div>
+            <div className="md:hidden border-t border-border bg-bg/80">
+              <div className="max-w-6xl mx-auto px-4 py-2">
+                <GlobalSearch />
+              </div>
             </div>
           </header>
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   describirSituacion,
   formatARS,
@@ -19,13 +20,26 @@ interface ApiResponse {
 }
 
 export default function DeudoresClient() {
+  const searchParams = useSearchParams();
   const [cuit, setCuit] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ApiResponse | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
 
-  async function consultar(e: React.FormEvent) {
-    e.preventDefault();
-    const clean = cuit.replace(/\D/g, "");
+  useEffect(() => {
+    const qp = searchParams.get("cuit");
+    if (qp) {
+      const clean = qp.replace(/\D/g, "");
+      if (clean.length === 11) {
+        setCuit(clean);
+        buscar(clean);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  async function buscar(rawCuit: string) {
+    const clean = rawCuit.replace(/\D/g, "");
     if (clean.length !== 11) {
       setResult({
         ok: false,
@@ -40,6 +54,9 @@ export default function DeudoresClient() {
       const res = await fetch(`/api/deudores/${clean}`);
       const json: ApiResponse = await res.json();
       setResult(json);
+      if (json.ok) {
+        setHistory((h) => [clean, ...h.filter((x) => x !== clean)].slice(0, 5));
+      }
     } catch (err) {
       setResult({
         ok: false,
@@ -53,51 +70,127 @@ export default function DeudoresClient() {
     }
   }
 
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    buscar(cuit);
+  }
+
+  function ejemplo(c: string) {
+    setCuit(c);
+    buscar(c);
+  }
+
+  const showResults = result || loading;
+
   return (
     <>
-      <form
-        onSubmit={consultar}
-        className="flex gap-2 mb-8 max-w-xl"
-        aria-describedby="cuit-help"
+      <div
+        className={
+          showResults
+            ? "sticky top-[57px] z-10 -mx-4 px-4 py-3 bg-bg/90 backdrop-blur border-b border-border mb-6"
+            : "mb-8"
+        }
       >
-        <label htmlFor="cuit-input" className="sr-only">
-          CUIT, CUIL o CDI (11 dígitos)
-        </label>
-        <input
-          id="cuit-input"
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          value={cuit}
-          onChange={(e) => setCuit(e.target.value)}
-          placeholder="20-12345678-3"
-          className="input flex-1 tabular"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          aria-busy={loading}
-          className="btn-primary"
+        <form
+          onSubmit={onSubmit}
+          className="flex gap-2 max-w-xl"
+          aria-describedby="cuit-help"
         >
-          {loading ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="spinner" aria-hidden="true" />
-              Buscando…
-            </span>
-          ) : (
-            "Consultá tu CUIT"
-          )}
-        </button>
-      </form>
-      <p id="cuit-help" className="sr-only">
-        Ingresá un CUIT, CUIL o CDI argentino de 11 dígitos. La consulta es
-        gratuita y anónima.
-      </p>
+          <label htmlFor="cuit-input" className="sr-only">
+            CUIT, CUIL o CDI (11 dígitos)
+          </label>
+          <input
+            id="cuit-input"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={cuit}
+            onChange={(e) => setCuit(e.target.value)}
+            placeholder="20-12345678-3"
+            className="input flex-1 tabular"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            aria-busy={loading}
+            className="btn-primary"
+          >
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="spinner" aria-hidden="true" />
+                Buscando…
+              </span>
+            ) : (
+              "Consultá tu CUIT"
+            )}
+          </button>
+        </form>
+        <p id="cuit-help" className="sr-only">
+          Ingresá un CUIT, CUIL o CDI argentino de 11 dígitos. La consulta es
+          gratuita y anónima.
+        </p>
+      </div>
+
+      {!showResults && (
+        <div className="mb-8 fade-up">
+          <div className="section-eyebrow mb-3 flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="inline-block w-6 h-px bg-accent align-middle"
+            />
+            Probá con un ejemplo
+          </div>
+          <div className="grid sm:grid-cols-3 gap-2">
+            <ExemploBtn
+              titulo="Mercado Libre"
+              cuit="30-70308853-4"
+              hint="Empresa grande"
+              onClick={ejemplo}
+            />
+            <ExemploBtn
+              titulo="Banco Galicia"
+              cuit="30-50000173-5"
+              hint="Banco"
+              onClick={ejemplo}
+            />
+            <ExemploBtn
+              titulo="YPF"
+              cuit="30-54668997-9"
+              hint="Petrolera"
+              onClick={ejemplo}
+            />
+          </div>
+          <p className="text-[11px] text-muted mt-3 leading-relaxed">
+            La Central de Deudores del BCRA es información pública por Ley de
+            Entidades Financieras. Podés consultar cualquier CUIT, CUIL o CDI.
+          </p>
+        </div>
+      )}
+
+      {history.length > 1 && showResults && (
+        <div className="mb-6 flex items-center gap-2 flex-wrap text-[10px] uppercase tracking-widest">
+          <span className="text-muted">Recientes</span>
+          {history.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => ejemplo(c)}
+              className={`px-2 py-1 border tabular ${
+                c === cuit.replace(/\D/g, "")
+                  ? "border-accent text-accent"
+                  : "border-border text-muted hover:text-ink hover:border-borderStrong"
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
 
       {result?.error && (
         <div
           role="alert"
-          className="border border-danger/30 bg-danger/5 p-4 text-sm"
+          className="border border-danger/30 bg-danger/5 p-4 text-sm fade-up"
         >
           <div className="text-danger">{result.error}</div>
         </div>
@@ -105,7 +198,8 @@ export default function DeudoresClient() {
 
       {loading && !result && (
         <div className="space-y-3" aria-hidden="true">
-          <div className="skeleton h-24" />
+          <div className="skeleton h-32" />
+          <div className="skeleton h-12" />
           <div className="skeleton h-12" />
           <div className="skeleton h-12" />
         </div>
@@ -113,6 +207,34 @@ export default function DeudoresClient() {
 
       {result?.ok && result.data && <Reporte data={result.data} />}
     </>
+  );
+}
+
+function ExemploBtn({
+  titulo,
+  cuit,
+  hint,
+  onClick,
+}: {
+  titulo: string;
+  cuit: string;
+  hint: string;
+  onClick: (cuit: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(cuit)}
+      className="card text-left hover:border-accent/60 hover:bg-panel2 transition-all group"
+    >
+      <div className="section-eyebrow group-hover:text-accent transition-colors">
+        {hint}
+      </div>
+      <div className="font-display italic text-base mt-1 text-ink">
+        {titulo}
+      </div>
+      <div className="tabular text-[10px] text-muted mt-2">{cuit}</div>
+    </button>
   );
 }
 

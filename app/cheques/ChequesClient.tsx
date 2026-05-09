@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { EntidadCheques, ChequeDenunciado } from "@/lib/bcra";
 
 export default function ChequesClient() {
@@ -8,9 +8,14 @@ export default function ChequesClient() {
   const [loadingEntidades, setLoadingEntidades] = useState(true);
   const [errEntidades, setErrEntidades] = useState<string | null>(null);
 
-  const [codigoEntidad, setCodigoEntidad] = useState<string>("");
+  const [bancoQuery, setBancoQuery] = useState("");
+  const [bancoSel, setBancoSel] = useState<EntidadCheques | null>(null);
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
   const [numeroCheque, setNumeroCheque] = useState("");
-  const [filtroBanco, setFiltroBanco] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState<
@@ -23,13 +28,11 @@ export default function ChequesClient() {
     fetch("/api/cheques")
       .then((r) => r.json())
       .then((j) => {
-        if (j.ok) {
-          setEntidades(j.data);
-        } else {
+        if (j.ok) setEntidades(j.data);
+        else
           setErrEntidades(
             "No pudimos traer la lista de bancos. Recargá la página.",
           );
-        }
       })
       .catch(() =>
         setErrEntidades(
@@ -39,15 +42,51 @@ export default function ChequesClient() {
       .finally(() => setLoadingEntidades(false));
   }, []);
 
-  const entidadesFiltradas = useMemo(() => {
-    if (!filtroBanco.trim()) return entidades;
-    const q = filtroBanco.toLowerCase();
-    return entidades.filter((e) => e.denominacion.toLowerCase().includes(q));
-  }, [entidades, filtroBanco]);
+  const filtered = useMemo(() => {
+    if (!bancoQuery.trim()) return entidades.slice(0, 12);
+    const q = bancoQuery.toLowerCase();
+    return entidades
+      .filter(
+        (e) =>
+          e.denominacion.toLowerCase().includes(q) ||
+          String(e.codigoEntidad).includes(q),
+      )
+      .slice(0, 12);
+  }, [entidades, bancoQuery]);
+
+  function selectBanco(e: EntidadCheques) {
+    setBancoSel(e);
+    setBancoQuery(e.denominacion);
+    setOpen(false);
+  }
+
+  function onKeyDown(ev: React.KeyboardEvent<HTMLInputElement>) {
+    if (!open) {
+      if (ev.key === "ArrowDown" || ev.key === "Enter") {
+        setOpen(true);
+        ev.preventDefault();
+      }
+      return;
+    }
+    if (ev.key === "ArrowDown") {
+      setHighlight((h) => Math.min(filtered.length - 1, h + 1));
+      ev.preventDefault();
+    } else if (ev.key === "ArrowUp") {
+      setHighlight((h) => Math.max(0, h - 1));
+      ev.preventDefault();
+    } else if (ev.key === "Enter") {
+      if (filtered[highlight]) {
+        selectBanco(filtered[highlight]);
+        ev.preventDefault();
+      }
+    } else if (ev.key === "Escape") {
+      setOpen(false);
+    }
+  }
 
   async function consultar(e: React.FormEvent) {
     e.preventDefault();
-    if (!codigoEntidad || !numeroCheque) {
+    if (!bancoSel || !numeroCheque) {
       setResultado({
         ok: false,
         error: "Elegí un banco y poné el número del cheque.",
@@ -57,16 +96,15 @@ export default function ChequesClient() {
     setLoading(true);
     setResultado(null);
     try {
-      const res = await fetch(`/api/cheques/${codigoEntidad}/${numeroCheque}`);
+      const res = await fetch(
+        `/api/cheques/${bancoSel.codigoEntidad}/${numeroCheque}`,
+      );
       const json = await res.json();
       if (json.ok) {
-        const ent = entidades.find(
-          (e) => e.codigoEntidad === Number(codigoEntidad),
-        );
         setResultado({
           ok: true,
           data: json.data,
-          entidad: ent?.denominacion ?? "—",
+          entidad: bancoSel.denominacion,
         });
       } else {
         setResultado({
@@ -86,15 +124,14 @@ export default function ChequesClient() {
     }
   }
 
+  const previewListo = !!bancoSel && numeroCheque.length > 0;
+
   return (
     <>
-      <form onSubmit={consultar} className="space-y-3 mb-6 max-w-2xl">
-        <div>
-          <label
-            htmlFor="entidad-select"
-            className="section-eyebrow block mb-1"
-          >
-            Entidad bancaria
+      <form onSubmit={consultar} className="space-y-4 mb-6 max-w-2xl">
+        <div className="relative">
+          <label htmlFor="banco-input" className="section-eyebrow block mb-1">
+            Banco emisor
           </label>
           {loadingEntidades ? (
             <div className="bg-panel border border-border px-4 py-3 text-sm text-muted flex items-center gap-2">
@@ -108,26 +145,61 @@ export default function ChequesClient() {
           ) : (
             <>
               <input
+                ref={inputRef}
+                id="banco-input"
                 type="text"
-                value={filtroBanco}
-                onChange={(e) => setFiltroBanco(e.target.value)}
-                placeholder="Buscar banco"
-                aria-label="Filtrar entidades"
-                className="input-sm border-b-0 mb-0"
-              />
-              <select
-                id="entidad-select"
-                value={codigoEntidad}
-                onChange={(e) => setCodigoEntidad(e.target.value)}
+                value={bancoQuery}
+                onChange={(e) => {
+                  setBancoQuery(e.target.value);
+                  setOpen(true);
+                  setHighlight(0);
+                  if (bancoSel && e.target.value !== bancoSel.denominacion) {
+                    setBancoSel(null);
+                  }
+                }}
+                onFocus={() => setOpen(true)}
+                onBlur={() => setTimeout(() => setOpen(false), 100)}
+                onKeyDown={onKeyDown}
+                placeholder="Buscá por nombre o código (ej. Galicia, ICBC, 7…)"
+                role="combobox"
+                aria-expanded={open}
+                aria-controls="banco-listbox"
+                aria-autocomplete="list"
                 className="input"
-              >
-                <option value="">Elegí un banco</option>
-                {entidadesFiltradas.map((e) => (
-                  <option key={e.codigoEntidad} value={e.codigoEntidad}>
-                    [{e.codigoEntidad}] {e.denominacion}
-                  </option>
-                ))}
-              </select>
+              />
+              {open && filtered.length > 0 && (
+                <ul
+                  ref={listRef}
+                  id="banco-listbox"
+                  role="listbox"
+                  className="absolute left-0 right-0 mt-1 bg-panel2 border border-borderStrong max-h-64 overflow-y-auto z-30 shadow-2xl"
+                >
+                  {filtered.map((e, i) => (
+                    <li
+                      key={e.codigoEntidad}
+                      role="option"
+                      aria-selected={i === highlight}
+                      onMouseDown={(ev) => {
+                        ev.preventDefault();
+                        selectBanco(e);
+                      }}
+                      onMouseEnter={() => setHighlight(i)}
+                      className={`px-4 py-2.5 text-sm cursor-pointer flex items-center gap-3 ${
+                        i === highlight ? "bg-accent text-bg" : "text-ink hover:bg-panel"
+                      }`}
+                    >
+                      <span
+                        className={`tabular text-[10px] ${
+                          i === highlight ? "text-bg/70" : "text-muted"
+                        }`}
+                      >
+                        [{String(e.codigoEntidad).padStart(3, "0")}]
+                      </span>
+                      <span className="truncate">{e.denominacion}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </>
           )}
         </div>
@@ -147,9 +219,13 @@ export default function ChequesClient() {
           />
         </div>
 
+        {previewListo && (
+          <ChequePreview entidad={bancoSel!.denominacion} numero={numeroCheque} />
+        )}
+
         <button
           type="submit"
-          disabled={loading || !codigoEntidad || !numeroCheque}
+          disabled={loading || !bancoSel || !numeroCheque}
           aria-busy={loading}
           className="btn-primary"
         >
@@ -177,6 +253,46 @@ export default function ChequesClient() {
         <ResultadoCheque data={resultado.data} entidad={resultado.entidad} />
       )}
     </>
+  );
+}
+
+function ChequePreview({
+  entidad,
+  numero,
+}: {
+  entidad: string;
+  numero: string;
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className="border border-dashed border-borderStrong bg-panel/40 p-4 fade-up"
+    >
+      <div className="section-eyebrow mb-2">Vas a verificar</div>
+      <div className="border border-border bg-bg p-4 relative">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-widest text-muted">
+              Banco
+            </div>
+            <div className="text-sm text-ink truncate">{entidad}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-widest text-muted">
+              N° cheque
+            </div>
+            <div className="text-sm tabular text-ink">{numero}</div>
+          </div>
+        </div>
+        <div className="mt-6 border-t border-dashed border-border pt-3 flex items-end justify-between text-[10px] text-muted">
+          <span>Pague a la orden de</span>
+          <span className="tabular">$ ____________</span>
+        </div>
+        <div className="absolute top-2 right-2 text-[9px] text-muted/60 tabular">
+          PREVIEW
+        </div>
+      </div>
+    </div>
   );
 }
 

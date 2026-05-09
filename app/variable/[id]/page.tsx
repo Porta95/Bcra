@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSerie, getVariables } from "@/lib/bcra";
 import SerieChart from "@/components/SerieChart";
+import Sparkline from "@/components/Sparkline";
+import { formatNumber } from "@/lib/bcra";
 
 export const revalidate = 1800;
 
@@ -64,6 +66,18 @@ export default async function VariablePage({
   ]);
 
   const meta = variables.find((v) => v.idVariable === id);
+
+  // Compute hero stats
+  const last30 = serie.slice(-30);
+  const sparkData = last30.map((p) => p.valor);
+  const lastValue = serie[serie.length - 1]?.valor ?? 0;
+  const baseValue = serie[Math.max(0, serie.length - 30)]?.valor ?? lastValue;
+  const deltaAbs = lastValue - baseValue;
+  const deltaPct =
+    baseValue === 0 ? 0 : (deltaAbs / Math.abs(baseValue)) * 100;
+  const positive = deltaPct >= 0;
+  const ultimaFecha =
+    serie[serie.length - 1]?.fecha ?? meta?.ultFechaInformada ?? "—";
 
   const datasetLd = meta
     ? {
@@ -148,28 +162,55 @@ export default async function VariablePage({
             </Link>
           </li>
           <li aria-hidden="true">›</li>
-          <li className="text-ink truncate max-w-[40ch]">
-            #{id}
-          </li>
+          <li className="text-ink truncate max-w-[40ch]">#{id}</li>
         </ol>
       </nav>
 
-      <div className="mt-4 mb-8 hero-rule">
-        <div className="section-eyebrow" aria-hidden="true">
-          Variable #{id}
-          {meta?.categoria && <span className="ml-2">· {meta.categoria}</span>}
-        </div>
-        <h1
-          id="variable-title"
-          className="font-display text-2xl md:text-3xl tracking-tight mt-1 max-w-3xl"
-        >
-          {meta?.descripcion ?? "Variable sin descripción publicada"}
-        </h1>
-        {meta?.unidadExpresion && (
-          <div className="text-xs text-muted mt-2">
-            Unidad: {meta.unidadExpresion}
+      <div className="border-l-2 border-accent pl-4 mb-8">
+        <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
+          <div className="min-w-0">
+            <div className="section-eyebrow" aria-hidden="true">
+              Variable #{id}
+              {meta?.categoria && <span className="ml-2">· {meta.categoria}</span>}
+            </div>
+            <h1
+              id="variable-title"
+              className="font-display text-2xl md:text-3xl tracking-tight mt-1 max-w-3xl"
+            >
+              {meta?.descripcion ?? "Variable sin descripción publicada"}
+            </h1>
+            {meta?.unidadExpresion && (
+              <div className="text-xs text-muted mt-2">
+                Unidad: {meta.unidadExpresion}
+              </div>
+            )}
+            <div className="text-[10px] uppercase tracking-widest text-muted mt-1 tabular">
+              Última publicación: {ultimaFecha}
+            </div>
           </div>
-        )}
+
+          {sparkData.length > 1 && (
+            <div className="min-w-0 md:min-w-[260px]">
+              <div className="text-4xl md:text-5xl tabular font-bold text-accent leading-none text-right">
+                {formatNumber(lastValue)}
+              </div>
+              <div
+                className={`text-sm mt-1 tabular text-right ${
+                  positive ? "text-ok" : "text-danger"
+                }`}
+              >
+                <span aria-hidden="true">{positive ? "▲" : "▼"}</span>{" "}
+                {formatNumber(Math.abs(deltaPct))}%
+                <span className="text-muted ml-2 normal-case">
+                  últimos 30 días
+                </span>
+              </div>
+              <div className="mt-3">
+                <Sparkline data={sparkData} positive={positive} height={48} />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <SerieChart data={serie} />

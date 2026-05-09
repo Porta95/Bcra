@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Suspense } from "react";
 import DeudoresClient from "./DeudoresClient";
 
 export const metadata: Metadata = {
@@ -100,7 +101,9 @@ export default function DeudoresPage() {
         </p>
       </div>
 
-      <DeudoresClient />
+      <Suspense fallback={null}>
+        <DeudoresClient />
+      </Suspense>
     </section>
   );
 }

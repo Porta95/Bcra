@@ -10,6 +10,7 @@ import {
 } from "@/lib/bcra";
 import TransparenciaTable from "@/components/TransparenciaTable";
 import TipoSelector from "@/components/TipoSelector";
+import Top5Highlights from "@/components/Top5Highlights";
 import { TIPOS, type Tipo } from "@/lib/transparencia";
 import type { Metadata } from "next";
 
@@ -130,7 +131,10 @@ export default async function Home({
           </div>
         </div>
       ) : (
-        <TransparenciaTable tipo={tipo} data={data} />
+        <>
+          <Top5Highlights tipo={tipo} data={data} />
+          <TransparenciaTable tipo={tipo} data={data} />
+        </>
       )}
     </section>
   );

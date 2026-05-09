@@ -13,7 +13,16 @@ interface Column<T> {
   render: (row: T) => React.ReactNode;
 }
 
-function getColumns(tipo: Tipo): Column<any>[] {
+interface CalcCtx {
+  monto: number;
+  plazoDias: number;
+}
+
+function rendimiento(tea: number, monto: number, plazoDias: number) {
+  return monto * (1 + (tea / 100) * (plazoDias / 365));
+}
+
+function getColumns(tipo: Tipo, calc?: CalcCtx): Column<any>[] {
   const banco: Column<any> = {
     key: "banco",
     label: "Entidad",
@@ -57,30 +66,55 @@ function getColumns(tipo: Tipo): Column<any>[] {
             </span>
           ),
         },
-        {
-          key: "min",
-          label: "Mín. invertir",
-          align: "right",
-          get: (r) => r.montoMinimoInvertir,
-          sort: (r) => r.montoMinimoInvertir ?? 0,
-          render: (r) => (
-            <span className="tabular text-muted">
-              {formatARS(r.montoMinimoInvertir ?? 0)}
-            </span>
-          ),
-        },
-        {
-          key: "dias",
-          label: "Plazo (días)",
-          align: "right",
-          get: (r) => r.plazoMinimoInvertirDias,
-          sort: (r) => r.plazoMinimoInvertirDias ?? 0,
-          render: (r) => (
-            <span className="tabular text-muted">
-              {r.plazoMinimoInvertirDias}d
-            </span>
-          ),
-        },
+        ...(calc
+          ? [
+              {
+                key: "rinde",
+                label: "Te llevás",
+                align: "right" as const,
+                get: (r: any) =>
+                  rendimiento(r.tasaEfectivaAnualMinima ?? 0, calc.monto, calc.plazoDias),
+                sort: (r: any) =>
+                  -rendimiento(r.tasaEfectivaAnualMinima ?? 0, calc.monto, calc.plazoDias),
+                render: (r: any) => (
+                  <span className="tabular font-bold text-ok">
+                    {formatARS(
+                      rendimiento(
+                        r.tasaEfectivaAnualMinima ?? 0,
+                        calc.monto,
+                        calc.plazoDias,
+                      ),
+                    )}
+                  </span>
+                ),
+              },
+            ]
+          : [
+              {
+                key: "min",
+                label: "Mín. invertir",
+                align: "right" as const,
+                get: (r: any) => r.montoMinimoInvertir,
+                sort: (r: any) => r.montoMinimoInvertir ?? 0,
+                render: (r: any) => (
+                  <span className="tabular text-muted">
+                    {formatARS(r.montoMinimoInvertir ?? 0)}
+                  </span>
+                ),
+              },
+              {
+                key: "dias",
+                label: "Plazo (días)",
+                align: "right" as const,
+                get: (r: any) => r.plazoMinimoInvertirDias,
+                sort: (r: any) => r.plazoMinimoInvertirDias ?? 0,
+                render: (r: any) => (
+                  <span className="tabular text-muted">
+                    {r.plazoMinimoInvertirDias}d
+                  </span>
+                ),
+              },
+            ]),
         fecha,
       ];
 
@@ -279,8 +313,12 @@ export default function TransparenciaTable({ tipo, data }: Props) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [calcOn, setCalcOn] = useState(false);
+  const [monto, setMonto] = useState(500_000);
+  const [plazoDias, setPlazoDias] = useState(30);
 
-  const cols = useMemo(() => getColumns(tipo), [tipo]);
+  const calc = tipo === "plazos-fijos" && calcOn ? { monto, plazoDias } : undefined;
+  const cols = useMemo(() => getColumns(tipo, calc), [tipo, calc]);
 
   const filtered = useMemo(() => {
     let rows = data;
@@ -317,6 +355,78 @@ export default function TransparenciaTable({ tipo, data }: Props) {
 
   return (
     <>
+      {tipo === "plazos-fijos" && (
+        <div className="mb-4 border border-border bg-panel p-4">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div className="section-eyebrow">Calculadora</div>
+            <button
+              type="button"
+              onClick={() => setCalcOn((v) => !v)}
+              className={`text-[10px] uppercase tracking-widest px-2 py-1 border transition-colors ${
+                calcOn
+                  ? "border-accent text-accent"
+                  : "border-border text-muted hover:text-ink hover:border-borderStrong"
+              }`}
+            >
+              {calcOn ? "Activa" : "Activar"}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-muted block mb-1">
+                Monto a invertir
+                <span className="text-accent tabular ml-2">{formatARS(monto)}</span>
+              </label>
+              <input
+                type="range"
+                min={50_000}
+                max={10_000_000}
+                step={50_000}
+                value={monto}
+                onChange={(e) => setMonto(Number(e.target.value))}
+                disabled={!calcOn}
+                aria-label="Monto a invertir"
+                className="w-full accent-accent disabled:opacity-40"
+              />
+              <div className="flex justify-between text-[9px] text-muted tabular mt-1">
+                <span>$50k</span>
+                <span>$10M</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-widest text-muted block mb-1">
+                Plazo
+                <span className="text-accent tabular ml-2">{plazoDias} días</span>
+              </label>
+              <div className="flex gap-1 flex-wrap">
+                {[30, 60, 90, 180, 365].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    disabled={!calcOn}
+                    onClick={() => setPlazoDias(d)}
+                    className={`px-2 py-1 text-[10px] uppercase tracking-widest border transition-colors disabled:opacity-40 ${
+                      plazoDias === d && calcOn
+                        ? "border-accent text-accent"
+                        : "border-border text-muted hover:text-ink hover:border-borderStrong"
+                    }`}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {calcOn && (
+            <p className="text-[10px] text-muted mt-3 leading-relaxed">
+              La columna "Te llevás" muestra cuánto cobrás al vencimiento al
+              aplicar la TEA del banco al monto y plazo elegidos. Es una
+              estimación lineal, no compone capitalizaciones intermedias.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="mb-2">
         <label htmlFor="tabla-search" className="sr-only">
           Buscar banco o producto
@@ -352,7 +462,31 @@ export default function TransparenciaTable({ tipo, data }: Props) {
             : "Sin productos para mostrar."}
         </div>
       ) : (
-        <div className="border border-border overflow-x-auto">
+        <>
+          <div className="md:hidden grid gap-2">
+            {filtered.slice(0, 500).map((row, i) => {
+              const banco = cols.find((c) => c.key === "banco");
+              const otherCols = cols.filter((c) => c.key !== "banco");
+              return (
+                <div key={i} className="card hover:border-accent/40 transition-colors">
+                  {banco && (
+                    <div className="text-sm text-ink mb-3 font-display italic">
+                      {banco.render(row)}
+                    </div>
+                  )}
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+                    {otherCols.map((c) => (
+                      <div key={c.key} className="min-w-0">
+                        <dt className="section-eyebrow truncate">{c.label}</dt>
+                        <dd className="mt-0.5 truncate">{c.render(row)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              );
+            })}
+          </div>
+          <div className="hidden md:block border border-border overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
@@ -409,7 +543,8 @@ export default function TransparenciaTable({ tipo, data }: Props) {
               Mostrando 500 de {filtered.length}. Usá el buscador para refinar.
             </div>
           )}
-        </div>
+          </div>
+        </>
       )}
     </>
   );
