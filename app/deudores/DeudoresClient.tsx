@@ -563,7 +563,7 @@ function ChequesTab({ data }: { data: ChequesResponse | null }) {
       {data.causales.map((entidad) => (
         <section key={entidad.entidad}>
           <div className="section-eyebrow mb-2">Entidad {entidad.entidad}</div>
-          {entidad.detalle.map((c) => (
+          {(entidad.detalle ?? []).map((c) => (
             <div key={c.causal} className="mb-4">
               <div className="text-xs text-danger mb-2 flex items-center gap-2">
                 <span
@@ -583,7 +583,7 @@ function ChequesTab({ data }: { data: ChequesResponse | null }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {c.detalle.map((d) => (
+                    {(c.detalle ?? []).map((d) => (
                       <tr key={d.nroCheque}>
                         <td className="tabular">{d.nroCheque}</td>
                         <td className="tabular text-muted">{d.fechaRechazo}</td>

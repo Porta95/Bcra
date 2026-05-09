@@ -155,7 +155,8 @@ function periodoSort(a: { periodo: string }, b: { periodo: string }): number {
 function statsForPeriodo(p: DeudaPeriodo): PeriodoStat {
   let monto = 0;
   let peorSit = 0;
-  for (const e of p.entidades) {
+  const entidades = p.entidades ?? [];
+  for (const e of entidades) {
     monto += montoOf(e);
     if ((e.situacion ?? 0) > peorSit) peorSit = e.situacion ?? 0;
   }
@@ -163,7 +164,7 @@ function statsForPeriodo(p: DeudaPeriodo): PeriodoStat {
     periodo: p.periodo,
     monto,
     peorSit,
-    entidades: p.entidades.length,
+    entidades: entidades.length,
   };
 }
 
@@ -362,7 +363,7 @@ export function analyze(input: AnalysisInput): AnalysisResult {
   // Banco stats
   const bancosMap = new Map<string, BancoStat>();
   for (const p of allPeriodos) {
-    for (const e of p.entidades) {
+    for (const e of p.entidades ?? []) {
       const key = e.entidad;
       const monto = montoOf(e);
       const existing = bancosMap.get(key);
@@ -396,7 +397,7 @@ export function analyze(input: AnalysisInput): AnalysisResult {
     const last = b.historial[b.historial.length - 1];
     if (last) {
       const periodoLast = allPeriodos.find((p) => p.periodo === last.periodo);
-      const ultimaEntidad = periodoLast?.entidades.find(
+      const ultimaEntidad = (periodoLast?.entidades ?? []).find(
         (e) => e.entidad === b.entidad,
       );
       b.ultimo = ultimaEntidad ?? null;
@@ -415,11 +416,13 @@ export function analyze(input: AnalysisInput): AnalysisResult {
     }
   }
 
-  // Cheques stat
+  // Cheques stat — el BCRA puede devolver causales sin detalle poblado
   const todosCheques =
-    cheques?.causales?.flatMap((c) =>
-      c.detalle.flatMap((d) => d.detalle),
-    ) ?? [];
+    (cheques?.causales ?? [])
+      .flatMap((c) =>
+        (c?.detalle ?? []).flatMap((d) => d?.detalle ?? []),
+      )
+      .filter(Boolean);
   const chequeStat: ChequeStat = {
     total: todosCheques.length,
     sinPagar: todosCheques.filter((c) => !c.fechaPago).length,
