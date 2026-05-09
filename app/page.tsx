@@ -8,10 +8,10 @@ import {
   getPrestamosPrendarios,
   getTarjetasCredito,
 } from "@/lib/bcra";
-import TransparenciaTable from "@/components/TransparenciaTable";
+import ComparadorList from "@/components/ComparadorList";
 import TipoSelector from "@/components/TipoSelector";
-import Top5Highlights from "@/components/Top5Highlights";
 import { TIPOS, type Tipo } from "@/lib/transparencia";
+import type { SubTipoPF } from "@/lib/comparador-helpers";
 import type { Metadata } from "next";
 
 export const revalidate = 21600; // 6h
@@ -35,6 +35,10 @@ const FETCHERS: Record<Tipo, () => Promise<any[]>> = {
 
 function isTipo(s: string | undefined): s is Tipo {
   return TIPOS.some((t) => t.id === s);
+}
+
+function isSubPF(s: string | undefined): s is SubTipoPF {
+  return s === "tradicional" || s === "uva" || s === "uva-precancelable";
 }
 
 const websiteLd = {
@@ -68,10 +72,16 @@ const websiteLd = {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: { tipo?: string };
+  searchParams: { tipo?: string; sub?: string };
 }) {
-  const tipo: Tipo = isTipo(searchParams.tipo) ? searchParams.tipo : "plazos-fijos";
+  const tipo: Tipo = isTipo(searchParams.tipo)
+    ? searchParams.tipo
+    : "plazos-fijos";
   const tipoLabel = TIPOS.find((t) => t.id === tipo)?.label ?? "";
+  const initialSub: SubTipoPF | undefined =
+    tipo === "plazos-fijos" && isSubPF(searchParams.sub)
+      ? searchParams.sub
+      : undefined;
 
   let data: any[] = [];
   let error: string | null = null;
@@ -107,13 +117,13 @@ export default async function Home({
           <span className="italic text-accent">hoy</span>
         </h1>
         <p className="text-xs text-muted mt-3 max-w-2xl leading-relaxed">
-          Tasas, comisiones y montos que cada banco le declara al BCRA. Tocá una
-          columna para ordenar. Las condiciones reales pueden variar según tu
-          perfil.
+          Tasas, comisiones y condiciones que cada banco le declara al BCRA.
+          Ordenado por mejor primero. Las condiciones reales pueden variar según
+          tu perfil.
         </p>
         {!error && data.length > 0 && (
           <div className="text-[10px] tabular text-muted mt-3 uppercase tracking-widest">
-            {tipoLabel} · {data.length} productos
+            {tipoLabel}
             {ultimaActualizacion && ` · actualizado ${ultimaActualizacion}`}
           </div>
         )}
@@ -131,10 +141,7 @@ export default async function Home({
           </div>
         </div>
       ) : (
-        <>
-          <Top5Highlights tipo={tipo} data={data} />
-          <TransparenciaTable tipo={tipo} data={data} />
-        </>
+        <ComparadorList tipo={tipo} data={data} initialSub={initialSub} />
       )}
     </section>
   );
