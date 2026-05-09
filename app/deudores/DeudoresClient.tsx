@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  describirSituacion,
   formatARS,
   type DeudasResponse,
   type ChequesResponse,
 } from "@/lib/bcra";
+import {
+  analyze,
+  type AnalysisResult,
+  type FlagInfo,
+} from "@/lib/deudores-analysis";
+import ScoreRadial from "@/components/ScoreRadial";
+import DeudaTimeline from "@/components/DeudaTimeline";
+import DeudaHeatmap from "@/components/DeudaHeatmap";
+import BancoCard from "@/components/BancoCard";
 
 interface ApiResponse {
   ok: boolean;
@@ -18,6 +26,8 @@ interface ApiResponse {
     cheques: ChequesResponse | null;
   };
 }
+
+type TabKey = "resumen" | "bancos" | "historico" | "cheques";
 
 export default function DeudoresClient() {
   const searchParams = useSearchParams();
@@ -198,10 +208,13 @@ export default function DeudoresClient() {
 
       {loading && !result && (
         <div className="space-y-3" aria-hidden="true">
-          <div className="skeleton h-32" />
-          <div className="skeleton h-12" />
-          <div className="skeleton h-12" />
-          <div className="skeleton h-12" />
+          <div className="skeleton h-48" />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="skeleton h-20" />
+            <div className="skeleton h-20" />
+            <div className="skeleton h-20" />
+          </div>
+          <div className="skeleton h-64" />
         </div>
       )}
 
@@ -239,241 +252,360 @@ function ExemploBtn({
 }
 
 function Reporte({ data }: { data: NonNullable<ApiResponse["data"]> }) {
-  const { deudas, historicas, cheques } = data;
+  const analysis = useMemo(() => analyze(data), [data]);
   const denom =
-    deudas?.denominacion ||
-    historicas?.denominacion ||
-    cheques?.denominacion ||
+    data.deudas?.denominacion ||
+    data.historicas?.denominacion ||
+    data.cheques?.denominacion ||
     "Sin denominación informada";
 
-  const totalDeuda =
-    deudas?.periodos
-      ?.flatMap((p) => p.entidades)
-      .reduce((acc, e) => acc + (e.monto ?? 0) * 1000, 0) ?? 0;
-
-  const peorSituacion =
-    deudas?.periodos
-      ?.flatMap((p) => p.entidades)
-      .reduce((max, e) => Math.max(max, e.situacion ?? 1), 1) ?? 1;
-
-  const sitInfo = describirSituacion(peorSituacion);
-  const sitColor =
-    sitInfo.tone === "ok"
-      ? "text-ok"
-      : sitInfo.tone === "warn"
-      ? "text-warn"
-      : "text-danger";
-
-  const tieneCheques = (cheques?.causales?.length ?? 0) > 0;
-  const cantidadCheques = tieneCheques
-    ? cheques?.causales
-        ?.flatMap((c) => c.detalle.flatMap((d) => d.detalle))
-        .length ?? 0
-    : 0;
+  const [tab, setTab] = useState<TabKey>("resumen");
+  const cantBancos = analysis.bancos.length;
+  const cantCheques = analysis.cheques.total;
+  const cantPeriodos = analysis.timeline.length;
 
   return (
-    <article aria-label="Informe de deudor" className="fade-up space-y-8">
-      <div className="card-emphasis">
-        <div className="section-eyebrow">Titular</div>
-        <div className="text-xl font-display italic mt-1">{denom}</div>
+    <article aria-label="Informe de deudor" className="fade-up space-y-6">
+      <HeaderReporte denom={denom} analysis={analysis} />
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-px bg-border mt-5 border border-border">
-          <div className="bg-panel2 p-4 min-w-0">
-            <div className="section-eyebrow">Deuda total</div>
-            <div className="tabular text-lg mt-1 truncate">
-              {totalDeuda > 0 ? formatARS(totalDeuda) : "—"}
-            </div>
-          </div>
-          <div className="bg-panel2 p-4 min-w-0">
-            <div className="section-eyebrow">Peor situación</div>
-            <div className={`text-sm mt-1 ${sitColor}`}>{sitInfo.label}</div>
-          </div>
-          <div className="bg-panel2 p-4 min-w-0">
-            <div className="section-eyebrow">Cheques rechazados</div>
-            <div
-              className={`tabular text-lg mt-1 ${
-                tieneCheques ? "text-danger" : "text-ok"
-              }`}
-            >
-              {cantidadCheques}
-            </div>
-          </div>
-        </div>
-      </div>
+      <KpiStrip analysis={analysis} />
 
-      <Section title="Deudas actuales (último período informado)">
-        {deudas?.periodos?.length ? (
-          deudas.periodos.map((p) => (
-            <PeriodoTable key={p.periodo} periodo={p} />
-          ))
-        ) : (
-          <Empty msg="No hay deudas informadas. Limpio en el último período." />
-        )}
-      </Section>
+      <Tabs
+        active={tab}
+        onChange={setTab}
+        items={[
+          { key: "resumen", label: "Resumen" },
+          { key: "bancos", label: `Bancos · ${cantBancos}` },
+          {
+            key: "historico",
+            label: `Histórico · ${cantPeriodos}m`,
+            disabled: cantPeriodos < 1,
+          },
+          { key: "cheques", label: `Cheques · ${cantCheques}`, disabled: cantCheques === 0 },
+        ]}
+      />
 
-      <Section title="Historial — últimos 24 meses">
-        {historicas?.periodos?.length ? (
-          <div className="border border-border overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Período</th>
-                  <th>Entidad</th>
-                  <th>Situación</th>
-                  <th className="text-right">Monto</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historicas.periodos.flatMap((p) =>
-                  p.entidades.map((e, i) => (
-                    <tr key={`${p.periodo}-${e.entidad}-${i}`}>
-                      <td className="tabular text-muted">{p.periodo}</td>
-                      <td>{e.entidad}</td>
-                      <td className="tabular">{e.situacion}</td>
-                      <td className="text-right tabular">
-                        {formatARS((e.monto ?? 0) * 1000)}
-                      </td>
-                    </tr>
-                  )),
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty msg="Sin movimientos en los últimos 24 meses." />
-        )}
-      </Section>
-
-      <Section title="Cheques rechazados">
-        {tieneCheques ? (
-          cheques!.causales.map((entidad) => (
-            <div key={entidad.entidad} className="mb-4">
-              <div className="section-eyebrow mb-2">
-                Entidad {entidad.entidad}
-              </div>
-              {entidad.detalle.map((c) => (
-                <div key={c.causal} className="mb-3">
-                  <div className="text-xs text-danger mb-2 flex items-center gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="inline-block w-1.5 h-3.5 bg-danger"
-                    />
-                    {c.causal}
-                  </div>
-                  <div className="border border-border overflow-x-auto">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>N° de cheque</th>
-                          <th>Fecha rechazo</th>
-                          <th className="text-right">Monto</th>
-                          <th>Fecha pago</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {c.detalle.map((d) => (
-                          <tr key={d.nroCheque}>
-                            <td className="tabular">{d.nroCheque}</td>
-                            <td className="tabular text-muted">
-                              {d.fechaRechazo}
-                            </td>
-                            <td className="text-right tabular text-danger">
-                              {formatARS(d.monto)}
-                            </td>
-                            <td className="tabular text-muted">
-                              {d.fechaPago ?? "—"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))
-        ) : (
-          <Empty msg="Sin cheques rechazados. Todo en orden." />
-        )}
-      </Section>
+      {tab === "resumen" && <ResumenTab analysis={analysis} />}
+      {tab === "bancos" && <BancosTab analysis={analysis} />}
+      {tab === "historico" && <HistoricoTab analysis={analysis} />}
+      {tab === "cheques" && <ChequesTab data={data.cheques} />}
     </article>
   );
 }
 
-function Section({
-  title,
-  children,
+function HeaderReporte({
+  denom,
+  analysis,
 }: {
-  title: string;
-  children: React.ReactNode;
+  denom: string;
+  analysis: AnalysisResult;
 }) {
+  const { tier, score } = analysis;
   return (
-    <section>
-      <h2 className="section-eyebrow mb-3 flex items-center gap-2">
-        <span
-          aria-hidden="true"
-          className="inline-block w-6 h-px bg-accent align-middle"
-        />
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function Empty({ msg }: { msg: string }) {
-  return (
-    <div className="border border-ok/20 bg-ok/5 text-ok p-4 text-sm">
-      ✓ {msg}
+    <div className="card-emphasis">
+      <div className="grid sm:grid-cols-[auto_1fr] gap-6 items-center">
+        <ScoreRadial score={score} tier={tier} />
+        <div className="min-w-0">
+          <div className="section-eyebrow">Titular</div>
+          <div className="text-xl md:text-2xl font-display italic mt-1 break-words">
+            {denom}
+          </div>
+          <p className="text-xs text-muted mt-3 leading-relaxed">
+            {tier.label}.{" "}
+            <span className="text-mutedSoft">
+              Score derivado del peor estado actual, días de atraso, cheques
+              rechazados y flags activos. No es un score crediticio comercial —
+              es una lectura rápida de los datos del BCRA.
+            </span>
+          </p>
+          {analysis.flags.length > 0 && (
+            <FlagsRow flags={analysis.flags} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-function PeriodoTable({
-  periodo,
+function FlagsRow({ flags }: { flags: FlagInfo[] }) {
+  return (
+    <div className="flex flex-wrap gap-2 mt-4">
+      {flags.map((f) => (
+        <span
+          key={f.key}
+          className={`text-[10px] uppercase tracking-widest px-2 py-1 border ${
+            f.tone === "danger"
+              ? "border-danger/50 text-danger bg-danger/5"
+              : "border-warn/50 text-warn bg-warn/5"
+          }`}
+        >
+          {f.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function KpiStrip({ analysis }: { analysis: AnalysisResult }) {
+  const { kpis, cheques } = analysis;
+  const delta = kpis.deltaDeuda12m;
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-px bg-border border border-border">
+      <Kpi label="Deuda actual" value={formatARS(kpis.deudaTotal)} accent />
+      <Kpi
+        label="Δ 12 meses"
+        value={
+          delta === null
+            ? "—"
+            : `${delta > 0 ? "+" : ""}${delta.toFixed(1)}%`
+        }
+        tone={delta === null ? "neutral" : delta > 0 ? "warn" : "ok"}
+      />
+      <Kpi
+        label="Peor situación"
+        value={kpis.peorSituacion ? `Sit. ${kpis.peorSituacion}` : "—"}
+        tone={
+          kpis.peorSituacion <= 1
+            ? "ok"
+            : kpis.peorSituacion <= 3
+            ? "warn"
+            : "danger"
+        }
+      />
+      <Kpi
+        label="Meses en rojo"
+        value={String(kpis.mesesEnRojo)}
+        tone={kpis.mesesEnRojo === 0 ? "ok" : "danger"}
+      />
+      <Kpi
+        label="Entidades activas"
+        value={String(kpis.entidadesActivas)}
+      />
+      <Kpi
+        label="Cheques rechazados"
+        value={String(cheques.total)}
+        tone={cheques.total === 0 ? "ok" : "danger"}
+      />
+    </div>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  tone = "neutral",
+  accent,
 }: {
-  periodo: NonNullable<DeudasResponse["periodos"]>[number];
+  label: string;
+  value: string;
+  tone?: "neutral" | "ok" | "warn" | "danger";
+  accent?: boolean;
+}) {
+  const colorClass = accent
+    ? "text-accent"
+    : tone === "ok"
+    ? "text-ok"
+    : tone === "warn"
+    ? "text-warn"
+    : tone === "danger"
+    ? "text-danger"
+    : "text-ink";
+
+  return (
+    <div className="bg-panel2 p-4 min-w-0">
+      <div className="section-eyebrow truncate">{label}</div>
+      <div
+        className={`tabular text-base md:text-lg mt-1 truncate font-bold ${colorClass}`}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function Tabs({
+  items,
+  active,
+  onChange,
+}: {
+  items: { key: TabKey; label: string; disabled?: boolean }[];
+  active: TabKey;
+  onChange: (k: TabKey) => void;
 }) {
   return (
-    <div className="mb-4">
-      <div className="section-eyebrow mb-2">Período {periodo.periodo}</div>
-      <div className="border border-border overflow-x-auto">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Entidad</th>
-              <th>Situación</th>
-              <th className="text-right">Atraso</th>
-              <th className="text-right">Monto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {periodo.entidades.map((e, i) => {
-              const sit = describirSituacion(e.situacion);
-              const color =
-                sit.tone === "ok"
-                  ? "text-ok"
-                  : sit.tone === "warn"
-                  ? "text-warn"
-                  : "text-danger";
-              return (
-                <tr key={i}>
-                  <td>{e.entidad}</td>
-                  <td className={color}>
-                    {e.situacion} · {sit.label}
-                  </td>
-                  <td className="text-right tabular text-muted">
-                    {e.diasAtrasoPago ? `${e.diasAtrasoPago}d` : "—"}
-                  </td>
-                  <td className="text-right tabular">
-                    {formatARS((e.monto ?? 0) * 1000)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <div role="tablist" className="border-b border-border flex overflow-x-auto">
+      {items.map((it) => {
+        const isActive = it.key === active;
+        return (
+          <button
+            key={it.key}
+            role="tab"
+            aria-selected={isActive}
+            disabled={it.disabled}
+            onClick={() => onChange(it.key)}
+            className={`px-4 py-2.5 text-[11px] uppercase tracking-widest whitespace-nowrap transition-colors border-b-2 disabled:opacity-30 disabled:cursor-not-allowed ${
+              isActive
+                ? "border-accent text-accent"
+                : "border-transparent text-muted hover:text-ink"
+            }`}
+          >
+            {it.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ResumenTab({ analysis }: { analysis: AnalysisResult }) {
+  return (
+    <div className="space-y-6">
+      <section>
+        <h2 className="section-eyebrow mb-3 flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="inline-block w-6 h-px bg-accent align-middle"
+          />
+          Lectura rápida
+        </h2>
+        {analysis.insights.length > 0 ? (
+          <ul className="space-y-2">
+            {analysis.insights.map((s, i) => (
+              <li
+                key={i}
+                className="card flex items-start gap-3 fade-up"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <span
+                  aria-hidden="true"
+                  className="inline-block w-1.5 h-3.5 bg-accent shrink-0 mt-1"
+                />
+                <span className="text-sm text-ink leading-relaxed">{s}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="empty-state">Sin observaciones para destacar.</div>
+        )}
+      </section>
+
+      {analysis.timeline.length >= 2 && (
+        <section>
+          <h2 className="section-eyebrow mb-3 flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="inline-block w-6 h-px bg-accent align-middle"
+            />
+            Evolución
+          </h2>
+          <DeudaTimeline data={analysis.timeline} />
+        </section>
+      )}
+
+      {analysis.kpis.picoDeuda.periodo &&
+        analysis.kpis.picoDeuda.monto > analysis.kpis.deudaTotal && (
+          <div className="text-[11px] text-muted leading-relaxed border-l-2 border-borderStrong pl-3">
+            <strong className="text-ink">Pico de deuda:</strong>{" "}
+            {formatARS(analysis.kpis.picoDeuda.monto)} en{" "}
+            {analysis.kpis.picoDeuda.periodo}.
+          </div>
+        )}
+    </div>
+  );
+}
+
+function BancosTab({ analysis }: { analysis: AnalysisResult }) {
+  if (!analysis.bancos.length) {
+    return (
+      <div className="empty-state">
+        Sin entidades reportando deuda en el sistema financiero.
       </div>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] text-muted">
+        Cada card es una entidad que reportó deuda en algún momento. Tocá para
+        ver el detalle por período.
+      </p>
+      <div className="grid gap-3">
+        {analysis.bancos.map((b) => (
+          <BancoCard key={b.entidad} banco={b} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HistoricoTab({ analysis }: { analysis: AnalysisResult }) {
+  return (
+    <div className="space-y-6">
+      <DeudaTimeline data={analysis.timeline} />
+      <DeudaHeatmap
+        bancos={analysis.bancos}
+        periodos={analysis.heatmapPeriodos}
+      />
+    </div>
+  );
+}
+
+function ChequesTab({ data }: { data: ChequesResponse | null }) {
+  if (!data || !data.causales?.length) {
+    return (
+      <div className="border border-ok/20 bg-ok/5 text-ok p-4 text-sm">
+        ✓ Sin cheques rechazados. Todo en orden.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {data.causales.map((entidad) => (
+        <section key={entidad.entidad}>
+          <div className="section-eyebrow mb-2">Entidad {entidad.entidad}</div>
+          {entidad.detalle.map((c) => (
+            <div key={c.causal} className="mb-4">
+              <div className="text-xs text-danger mb-2 flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="inline-block w-1.5 h-3.5 bg-danger"
+                />
+                {c.causal}
+              </div>
+              <div className="border border-border overflow-x-auto">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>N° de cheque</th>
+                      <th>Fecha rechazo</th>
+                      <th className="text-right">Monto</th>
+                      <th>Fecha pago</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {c.detalle.map((d) => (
+                      <tr key={d.nroCheque}>
+                        <td className="tabular">{d.nroCheque}</td>
+                        <td className="tabular text-muted">{d.fechaRechazo}</td>
+                        <td className="text-right tabular text-danger">
+                          {formatARS(d.monto)}
+                        </td>
+                        <td
+                          className={`tabular ${
+                            d.fechaPago ? "text-ok" : "text-muted"
+                          }`}
+                        >
+                          {d.fechaPago ?? "Sin pagar"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </section>
+      ))}
     </div>
   );
 }
