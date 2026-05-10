@@ -88,7 +88,7 @@ export default function DeudoresPage() {
         </div>
         <h1
           id="deudores-title"
-          className="font-display text-3xl md:text-4xl tracking-tight mt-1"
+          className="font-display text-display tracking-tight mt-1"
         >
           Mirá qué dice el BCRA de tu{" "}
           <span className="italic text-accent">CUIT</span>

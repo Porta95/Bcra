@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Check } from "lucide-react";
 import {
   formatARS,
   type DeudasResponse,
@@ -552,8 +553,9 @@ function HistoricoTab({ analysis }: { analysis: AnalysisResult }) {
 function ChequesTab({ data }: { data: ChequesResponse | null }) {
   if (!data || !data.causales?.length) {
     return (
-      <div className="border border-ok/20 bg-ok/5 text-ok p-4 text-sm">
-        ✓ Sin cheques rechazados. Todo en orden.
+      <div className="border border-ok/20 bg-ok/5 text-ok p-4 text-sm flex items-center gap-2">
+        <Check size={16} aria-hidden="true" />
+        Sin cheques rechazados. Todo en orden.
       </div>
     );
   }

@@ -228,19 +228,20 @@ export default function ComparadorList({ tipo, data, initialSub }: Props) {
             : "Sin entidades para mostrar."}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 stagger">
           {rows.slice(0, 200).map((spec, i) => (
-            <RowCard
-              key={`${spec.row.codigoEntidad}-${i}`}
-              spec={spec}
-              tipo={tipo}
-              calc={
-                tipo === "plazos-fijos" && calcOn
-                  ? { monto, plazoDias }
-                  : undefined
-              }
-              rank={i + 1}
-            />
+            <div key={`${spec.row.codigoEntidad}-${i}`} style={{ ["--i" as any]: Math.min(i, 12) }}>
+              <RowCard
+                spec={spec}
+                tipo={tipo}
+                calc={
+                  tipo === "plazos-fijos" && calcOn
+                    ? { monto, plazoDias }
+                    : undefined
+                }
+                rank={i + 1}
+              />
+            </div>
           ))}
           {rows.length > 200 && (
             <div className="text-center text-[10px] text-muted py-3">
@@ -405,7 +406,7 @@ function RowCard({
 
   return (
     <article
-      className={`border bg-panel hover:bg-panel2 transition-colors p-3 sm:p-4 flex items-center gap-3 sm:gap-4 ${
+      className={`border bg-panel hover:bg-panel2 transition-all duration-150 ease-spring p-3 sm:p-4 flex items-center gap-3 sm:gap-4 ${
         isTop ? "border-accent/40" : "border-border"
       }`}
     >

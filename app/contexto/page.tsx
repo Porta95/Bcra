@@ -105,7 +105,7 @@ export default async function ContextoPage() {
         </div>
         <h1
           id="contexto-title"
-          className="font-display text-3xl md:text-4xl tracking-tight mt-1"
+          className="font-display text-display tracking-tight mt-1"
         >
           ¿El plazo fijo le gana a la{" "}
           <span className="italic text-accent">inflación</span>?
@@ -138,7 +138,7 @@ export default async function ContextoPage() {
           >
             <div className="section-eyebrow">Respuesta corta</div>
             <div
-              className={`font-display italic text-4xl md:text-6xl mt-2 ${
+              className={`font-display italic text-hero mt-2 ${
                 gana ? "text-ok" : "text-danger"
               }`}
             >

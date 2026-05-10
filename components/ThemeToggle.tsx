@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 
 type Theme = "dark" | "light";
 
@@ -30,30 +31,15 @@ export default function ThemeToggle() {
           ? "Cambiar a modo claro"
           : "Cambiar a modo oscuro"
       }
-      className="p-2 text-muted hover:text-accent transition-colors"
+      className="p-2 text-muted hover:text-accent active:scale-90 transition-all duration-150 ease-spring"
     >
-      {mounted && (
-        <svg
-          aria-hidden="true"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          {theme === "dark" ? (
-            <>
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-            </>
-          ) : (
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          )}
-        </svg>
-      )}
+      {mounted &&
+        (theme === "dark" ? (
+          <Sun size={16} aria-hidden="true" />
+        ) : (
+          <Moon size={16} aria-hidden="true" />
+        ))}
+      {!mounted && <span className="inline-block w-4 h-4" aria-hidden="true" />}
     </button>
   );
 }

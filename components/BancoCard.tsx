@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronRight } from "lucide-react";
 import Sparkline from "./Sparkline";
 import { describirSituacion, formatARS } from "@/lib/bcra";
 import { fmtPeriodoHumano, type BancoStat } from "@/lib/deudores-analysis";
@@ -81,14 +82,13 @@ export default function BancoCard({ banco }: Props) {
               <Sparkline data={spark} positive={trendPositive} height={40} />
             </div>
           )}
-          <span
+          <ChevronRight
             aria-hidden="true"
-            className={`text-muted mt-2 text-xs transition-transform ${
+            size={16}
+            className={`text-muted mt-2 transition-transform duration-150 ease-spring ${
               open ? "rotate-90 text-accent" : ""
             }`}
-          >
-            ›
-          </span>
+          />
         </div>
       </button>
 

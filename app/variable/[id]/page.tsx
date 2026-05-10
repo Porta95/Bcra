@@ -2,6 +2,7 @@ import Link from "next/link";
 import Script from "next/script";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ChevronRight, TrendingDown, TrendingUp } from "lucide-react";
 import { getSerie, getVariables } from "@/lib/bcra";
 import SerieChart from "@/components/SerieChart";
 import Sparkline from "@/components/Sparkline";
@@ -155,13 +156,17 @@ export default async function VariablePage({
               Inicio
             </Link>
           </li>
-          <li aria-hidden="true">›</li>
+          <li aria-hidden="true" className="flex items-center">
+            <ChevronRight size={12} />
+          </li>
           <li>
             <Link href="/macro" className="hover:text-accent transition-colors">
               Macro
             </Link>
           </li>
-          <li aria-hidden="true">›</li>
+          <li aria-hidden="true" className="flex items-center">
+            <ChevronRight size={12} />
+          </li>
           <li className="text-ink truncate max-w-[40ch]">#{id}</li>
         </ol>
       </nav>
@@ -195,11 +200,15 @@ export default async function VariablePage({
                 {formatNumber(lastValue)}
               </div>
               <div
-                className={`text-sm mt-1 tabular text-right ${
+                className={`text-sm mt-1 tabular text-right inline-flex items-center justify-end gap-1 w-full ${
                   positive ? "text-ok" : "text-danger"
                 }`}
               >
-                <span aria-hidden="true">{positive ? "▲" : "▼"}</span>{" "}
+                {positive ? (
+                  <TrendingUp size={14} aria-hidden="true" />
+                ) : (
+                  <TrendingDown size={14} aria-hidden="true" />
+                )}
                 {formatNumber(Math.abs(deltaPct))}%
                 <span className="text-muted ml-2 normal-case">
                   últimos 30 días

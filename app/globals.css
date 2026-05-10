@@ -82,14 +82,21 @@ body::before {
 }
 button:focus-visible, a:focus-visible { outline-offset: 3px; }
 
+/* Stagger entrance for grids/lists. Wrap items with this class and pass --i */
+.stagger > * {
+  animation: fadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.fade-up { animation: fadeUp 0.4s ease-out backwards; }
+.fade-up { animation: fadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 
 @media (prefers-reduced-motion: reduce) {
-  .fade-up { animation: none; }
+  .fade-up,
+  .stagger > * { animation: none; }
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 
@@ -101,16 +108,16 @@ button:focus-visible, a:focus-visible { outline-offset: 3px; }
     @apply w-full bg-panel border border-border focus:border-accent focus:outline-none px-3 py-2 text-xs placeholder:text-muted transition-colors;
   }
   .btn-primary {
-    @apply bg-accent text-bg px-6 py-3 text-xs uppercase tracking-widest font-bold hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+    @apply bg-accent text-bg px-6 py-3 text-xs uppercase tracking-widest font-bold hover:bg-accent/90 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 ease-spring;
   }
   .btn-ghost {
-    @apply border border-border text-muted hover:text-ink hover:border-borderStrong px-3 py-2 text-xs uppercase tracking-widest transition-colors;
+    @apply border border-border text-muted hover:text-ink hover:border-borderStrong active:scale-[0.97] px-3 py-2 text-xs uppercase tracking-widest transition-all duration-150 ease-spring;
   }
   .data-table {
     @apply w-full text-xs;
   }
   .data-table thead th {
-    @apply bg-panel text-muted uppercase tracking-widest font-normal text-[10px] px-3 py-2.5 text-left;
+    @apply bg-panel text-muted uppercase tracking-widest font-normal text-2xs px-3 py-2.5 text-left;
   }
   .data-table tbody td {
     @apply px-3 py-2.5 border-t border-border;
@@ -124,8 +131,11 @@ button:focus-visible, a:focus-visible { outline-offset: 3px; }
   .card-emphasis {
     @apply border-l-2 border-l-accent border-y border-r border-border bg-panel p-5;
   }
+  .card-press {
+    @apply transition-transform duration-150 ease-spring active:scale-[0.985];
+  }
   .section-eyebrow {
-    @apply text-[10px] uppercase tracking-[0.2em] text-muted;
+    @apply text-2xs uppercase tracking-[0.2em] text-muted;
   }
   .hero-rule {
     @apply border-l-2 border-accent pl-4;

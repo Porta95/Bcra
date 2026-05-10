@@ -88,7 +88,7 @@ export default function ChequesPage() {
         </div>
         <h1
           id="cheques-title"
-          className="font-display text-3xl md:text-4xl tracking-tight mt-1"
+          className="font-display text-display tracking-tight mt-1"
         >
           Antes de aceptar un cheque,{" "}
           <span className="italic text-accent">fijate</span>

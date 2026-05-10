@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import type { SeriePoint } from "@/lib/bcra";
 import { formatNumber } from "@/lib/bcra";
 
@@ -60,25 +61,21 @@ export default function SerieChart({ data }: Props) {
 
   return (
     <div>
-      <div className="flex items-end justify-between mb-4 gap-4 flex-wrap">
-        <div className="min-w-0">
-          <div className="text-3xl md:text-4xl font-bold tabular text-accent leading-none">
-            {formatNumber(stats!.last)}
-          </div>
-          <div
-            className={`text-sm tabular mt-2 ${
-              positive ? "text-ok" : "text-danger"
-            }`}
-          >
-            <span aria-hidden="true">{positive ? "▲" : "▼"}</span>{" "}
-            {formatNumber(Math.abs(stats!.change))}%
-            <span className="text-muted ml-2 normal-case">
-              en {RANGES[rangeIdx].label}
-            </span>
-          </div>
-          <div className="text-[10px] uppercase tracking-widest text-muted mt-1 tabular">
-            Última publicación: {stats!.ultimaFecha}
-          </div>
+      <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+        <div
+          className={`text-sm tabular inline-flex items-center gap-1 ${
+            positive ? "text-ok" : "text-danger"
+          }`}
+        >
+          {positive ? (
+            <TrendingUp size={14} aria-hidden="true" />
+          ) : (
+            <TrendingDown size={14} aria-hidden="true" />
+          )}
+          {formatNumber(Math.abs(stats!.change))}%
+          <span className="text-muted ml-2 normal-case">
+            en {RANGES[rangeIdx].label}
+          </span>
         </div>
         <div
           role="tablist"
@@ -94,7 +91,7 @@ export default function SerieChart({ data }: Props) {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setRangeIdx(i)}
-                className={`px-3 py-1.5 text-xs uppercase tracking-widest transition-colors ${
+                className={`px-3 py-1.5 text-xs uppercase tracking-widest transition-colors active:scale-95 ease-spring ${
                   active
                     ? "bg-accent text-bg"
                     : "text-muted hover:text-ink"

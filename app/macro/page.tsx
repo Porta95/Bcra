@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Script from "next/script";
+import { ChevronRight, TrendingDown, TrendingUp } from "lucide-react";
 import {
   getSerie,
   getVariables,
@@ -152,7 +153,7 @@ export default async function MacroPage() {
         </div>
         <h1
           id="macro-title"
-          className="font-display text-3xl md:text-4xl tracking-tight mt-1"
+          className="font-display text-display tracking-tight mt-1"
         >
           Las variables que mueven la{" "}
           <span className="italic text-accent">economía</span>
@@ -201,11 +202,15 @@ export default async function MacroPage() {
                       {formatNumber(t.v.ultValorInformado)}
                     </div>
                     <div
-                      className={`text-xs tabular mt-1 ${
+                      className={`text-xs tabular mt-1 inline-flex items-center gap-1 ${
                         t.delta >= 0 ? "text-ok" : "text-danger"
                       }`}
                     >
-                      <span aria-hidden="true">{t.delta >= 0 ? "▲" : "▼"}</span>{" "}
+                      {t.delta >= 0 ? (
+                        <TrendingUp size={12} aria-hidden="true" />
+                      ) : (
+                        <TrendingDown size={12} aria-hidden="true" />
+                      )}
                       {formatNumber(Math.abs(t.delta))}%
                       <span className="text-muted ml-2 normal-case">30d</span>
                     </div>
@@ -282,12 +287,11 @@ export default async function MacroPage() {
                           {c.categoria}
                         </div>
                       </div>
-                      <span
+                      <ChevronRight
                         aria-hidden="true"
+                        size={16}
                         className="text-muted group-open:text-accent group-open:rotate-90 transition-transform"
-                      >
-                        ›
-                      </span>
+                      />
                     </summary>
                     <ul className="mt-4 pt-3 border-t border-border space-y-2 max-h-72 overflow-y-auto">
                       {c.items.slice(0, 30).map((v) => (

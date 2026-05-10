@@ -111,7 +111,7 @@ export default async function Home({
         </div>
         <h1
           id="comparador-title"
-          className="font-display text-3xl md:text-4xl tracking-tight mt-1"
+          className="font-display text-display tracking-tight mt-1"
         >
           Qué banco te conviene{" "}
           <span className="italic text-accent">hoy</span>
