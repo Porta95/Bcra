@@ -209,7 +209,7 @@ export default async function Home() {
               className="section-eyebrow flex items-center gap-2"
             >
               <span aria-hidden="true" className="inline-block w-6 h-px bg-accent align-middle" />
-              LECAPs · mayor rendimiento
+              Letras · mayor rendimiento
             </h2>
             <span className="text-[10px] tabular text-muted uppercase tracking-widest">
               TNA implícita

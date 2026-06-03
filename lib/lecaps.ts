@@ -1,4 +1,4 @@
-/** Letras Capitalizables del Tesoro — data912.com/live/arg_notes */
+/** Letras del Tesoro — cotización secundaria sub-par — data912.com/live/arg_notes */
 
 const MONTH_MAP: Record<string, number> = {
   E: 0, F: 1, M: 2, A: 3, Y: 4, J: 5,
@@ -12,7 +12,7 @@ const MONTH_LABELS = [
 
 export interface Lecap {
   symbol: string;
-  vencimientoStr: string; // "12 Jun 2026"
+  vencimientoStr: string; // "30 Jun 2026"
   precio: number;
   bid: number;
   ask: number;
@@ -21,8 +21,23 @@ export interface Lecap {
   diasAlVencimiento: number;
 }
 
-function decodeSymbol(symbol: string): Date | null {
-  // Formato: S<dd><M><y>  ej: S12J6 = 12 Jun 2026
+function lastDayOfMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+}
+
+/** Decode LB<M><YY>  e.g. LBJ26 = last day Jun 2026 */
+function decodeLB(symbol: string): Date | null {
+  const m = symbol.match(/^LB([A-Z])(\d{2})$/);
+  if (!m) return null;
+  const monthIdx = MONTH_MAP[m[1]];
+  if (monthIdx === undefined) return null;
+  const year = 2000 + parseInt(m[2], 10);
+  const day = lastDayOfMonth(year, monthIdx);
+  return new Date(Date.UTC(year, monthIdx, day));
+}
+
+/** Decode S<dd><M><y>  e.g. S12J6 = 12 Jun 2026 (for future use when prices return below par) */
+function decodeS(symbol: string): Date | null {
   const m = symbol.match(/^S(\d{2})([A-Z])(\d)$/);
   if (!m) return null;
   const day = parseInt(m[1], 10);
@@ -30,6 +45,12 @@ function decodeSymbol(symbol: string): Date | null {
   if (monthIdx === undefined) return null;
   const year = 2020 + parseInt(m[3], 10);
   return new Date(Date.UTC(year, monthIdx, day));
+}
+
+function decodeSymbol(symbol: string): Date | null {
+  if (symbol.startsWith("LB")) return decodeLB(symbol);
+  if (symbol.startsWith("S"))  return decodeS(symbol);
+  return null;
 }
 
 function formatDate(d: Date): string {
@@ -51,7 +72,12 @@ export async function getLecaps(): Promise<Lecap[]> {
   );
 
   return rows
-    .filter((r) => r.symbol?.startsWith("S") && (r.c ?? 0) > 0)
+    .filter((r) => {
+      const sym: string = r.symbol ?? "";
+      const price: number = r.c ?? 0;
+      // Only discount instruments (price < 100 and > 1 to exclude near-zero junk)
+      return price > 1 && price < 100 && (sym.startsWith("LB") || sym.startsWith("S"));
+    })
     .flatMap((r) => {
       const venc = decodeSymbol(r.symbol);
       if (!venc) return [];
