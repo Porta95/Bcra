@@ -51,11 +51,12 @@ export const metadata: Metadata = {
 };
 
 const NAV = [
-  { href: "/",         label: "Tasas"     },
-  { href: "/macro",    label: "Macro"     },
-  { href: "/deudores", label: "Deudores"  },
-  { href: "/cheques",  label: "Cheques"   },
-  { href: "/contexto", label: "Contexto"  },
+  { href: "/",            label: "Inicio"    },
+  { href: "/comparador",  label: "Tasas"     },
+  { href: "/macro",       label: "Macro"     },
+  { href: "/deudores",    label: "Deudores"  },
+  { href: "/cheques",     label: "Cheques"   },
+  { href: "/contexto",    label: "Contexto"  },
 ];
 
 export default function RootLayout({
