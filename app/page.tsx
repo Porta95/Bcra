@@ -129,7 +129,7 @@ export default async function Home({
         </h1>
         <p className="text-xs text-muted mt-3 max-w-2xl leading-relaxed">
           {tipo === "billeteras"
-            ? "Tasas de rendimiento de billeteras virtuales y cuentas remuneradas de apertura gratuita. Verificá en la app de cada entidad antes de operar."
+            ? "Tasas de rendimiento de billeteras virtuales y cuentas remuneradas de apertura gratuita en Argentina."
             : "Tasas, comisiones y condiciones que cada banco le declara al BCRA. Ordenado por mejor primero. Las condiciones reales pueden variar según tu perfil."}
         </p>
         {!error && data.length > 0 && (

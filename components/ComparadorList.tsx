@@ -275,10 +275,6 @@ export default function ComparadorList({ tipo, data, initialSub }: Props) {
           </div>
         )}
 
-        <p className="text-[10px] text-muted leading-relaxed">
-          Las tasas de billeteras no provienen del BCRA — son publicadas por cada
-          entidad. Verificá en la app correspondiente antes de operar.
-        </p>
       </div>
     );
   }
