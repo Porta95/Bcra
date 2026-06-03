@@ -67,6 +67,8 @@ function isBetter(tipo: Tipo, a: any, b: any): boolean {
         (a.procesoSimplificadoDebidaDiligencia === "SI" ? 1 : 0) >
         (b.procesoSimplificadoDebidaDiligencia === "SI" ? 1 : 0)
       );
+    case "billeteras":
+      return (a.tna ?? 0) > (b.tna ?? 0);
   }
 }
 
@@ -117,7 +119,22 @@ const KNOWN_LOGOS: Record<
   OPENBANK: { color: "#FF1430", short: "OP" },
   UALA: { color: "#3FB55B", short: "UA" },
   NARANJA: { color: "#F7951F", short: "NJ" },
+  // Billeteras y neobancos
+  FIWIND: { color: "#00BCD4", short: "FW" },
+  CARREFOUR: { color: "#1565C0", short: "CF" },
+  MERCADO: { color: "#009EE3", short: "MP" },
+  PERSONAL: { color: "#6200EA", short: "PP" },
+  LEMON: { color: "#2E7D32", short: "LC" },
+  CRESIUM: { color: "#37474F", short: "CS" },
 };
+
+// Bancos relevantes para el filtro de Plazo Fijo
+export const BANCOS_RELEVANTES_KEYWORDS = new Set([
+  "GALICIA", "SANTANDER", "BBVA", "MACRO", "NACION", "ICBC", "HSBC",
+  "PROVINCIA", "CIUDAD", "CREDICOOP", "PATAGONIA", "COMAFI", "SUPERVIELLE",
+  "ITAU", "HIPOTECARIO", "CITY", "REBA", "BRUBANK", "WILOBANK", "OPENBANK",
+  "UALA", "NARANJA", "FRANCES", "COLUMBIA", "INDUSTRIAL",
+]);
 
 function hashColor(name: string): string {
   let h = 0;

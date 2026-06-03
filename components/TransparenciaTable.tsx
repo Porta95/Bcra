@@ -301,6 +301,24 @@ function getColumns(tipo: Tipo, calc?: CalcCtx): Column<any>[] {
           ),
         },
       ];
+
+    case "billeteras":
+      return [
+        banco,
+        {
+          key: "tna",
+          label: "TNA",
+          align: "right",
+          get: (r) => r.tna,
+          sort: (r) => -(r.tna ?? 0),
+          render: (r) => (
+            <span className="text-accent tabular font-bold">
+              {formatPct(r.tna ?? 0)}
+            </span>
+          ),
+        },
+        fecha,
+      ];
   }
 }
 

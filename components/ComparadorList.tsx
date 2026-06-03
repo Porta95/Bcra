@@ -5,15 +5,18 @@ import Link from "next/link";
 import {
   formatARS,
   formatPct,
+  formatNumber,
   shortBankName,
 } from "@/lib/bcra";
 import {
   SUBTIPOS_PF,
+  BANCOS_RELEVANTES_KEYWORDS,
   type SubTipoPF,
   bucketPlazoFijo,
   dedupeByBank,
 } from "@/lib/comparador-helpers";
 import { type Tipo } from "@/lib/transparencia";
+import { type Billetera } from "@/lib/billeteras-data";
 import BankAvatar from "./BankAvatar";
 
 interface Props {
@@ -34,6 +37,18 @@ interface RowSpec {
 
 function describeRow(tipo: Tipo, r: any): RowSpec {
   switch (tipo) {
+    case "billeteras": {
+      const b = r as Billetera;
+      return {
+        primary: `${formatNumber(b.tna)}%`,
+        primaryLabel: "TNA",
+        primarySort: -b.tna,
+        primaryTone: "accent",
+        chip: b.tipo === "billetera" ? "Billetera" : "Cuenta Remunerada",
+        secondary: b.condicion,
+        row: r,
+      };
+    }
     case "plazos-fijos": {
       const sub = bucketPlazoFijo(r);
       const subLabel =
@@ -116,6 +131,8 @@ function rendimientoPF(tea: number, monto: number, plazoDias: number) {
 
 function tieneMetricaValida(tipo: Tipo, r: any): boolean {
   switch (tipo) {
+    case "billeteras":
+      return (r as Billetera).tna > 0;
     case "plazos-fijos":
       return (r.tasaEfectivaAnualMinima ?? 0) > 0;
     case "personales":
@@ -143,19 +160,31 @@ export default function ComparadorList({ tipo, data, initialSub }: Props) {
   const [monto, setMonto] = useState(500_000);
   const [plazoDias, setPlazoDias] = useState(30);
   const [sub, setSub] = useState<SubTipoPF>(initialSub ?? "tradicional");
+  const [soloRelevantes, setSoloRelevantes] = useState(true);
 
   const filteredBySub = useMemo(() => {
     if (tipo !== "plazos-fijos") return data;
     return data.filter((r) => bucketPlazoFijo(r) === sub);
   }, [tipo, data, sub]);
 
+  const filteredByRelevancia = useMemo(() => {
+    if (tipo !== "plazos-fijos" || !soloRelevantes) return filteredBySub;
+    return filteredBySub.filter((r) => {
+      const upper = (r.descripcionEntidad ?? "").toUpperCase();
+      for (const kw of BANCOS_RELEVANTES_KEYWORDS) {
+        if (upper.includes(kw)) return true;
+      }
+      return false;
+    });
+  }, [tipo, filteredBySub, soloRelevantes]);
+
   const validRows = useMemo(
-    () => filteredBySub.filter((r) => tieneMetricaValida(tipo, r)),
-    [tipo, filteredBySub],
+    () => filteredByRelevancia.filter((r) => tieneMetricaValida(tipo, r)),
+    [tipo, filteredByRelevancia],
   );
 
   const dedupedRows = useMemo(
-    () => dedupeByBank(tipo, validRows),
+    () => tipo === "billeteras" ? validRows : dedupeByBank(tipo, validRows),
     [tipo, validRows],
   );
 
@@ -165,18 +194,94 @@ export default function ComparadorList({ tipo, data, initialSub }: Props) {
     if (query.trim()) {
       const q = query.toLowerCase();
       out = out.filter((spec) => {
-        const banco = shortBankName(spec.row.descripcionEntidad ?? "");
+        const nombre = (spec.row as Billetera).nombre ?? spec.row.descripcionEntidad ?? "";
+        const banco = shortBankName(nombre);
         return (
           banco.toLowerCase().includes(q) ||
-          (spec.row.descripcionEntidad ?? "").toLowerCase().includes(q) ||
+          nombre.toLowerCase().includes(q) ||
           spec.chip.toLowerCase().includes(q)
         );
       });
     }
-    return [...out].sort((a, b) => a.primarySort - b.primarySort);
+    if (tipo !== "billeteras") {
+      out.sort((a, b) => a.primarySort - b.primarySort);
+    }
+    return out;
   }, [dedupedRows, tipo, query]);
 
   const totalSinFiltro = dedupedRows.length;
+
+  // Billeteras: render agrupado
+  if (tipo === "billeteras") {
+    const guaranteed = rows.filter((s) => (s.row as Billetera).group === "garantizado");
+    const conditional = rows.filter((s) => (s.row as Billetera).group === "condicional");
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 flex-wrap">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar billetera o cuenta"
+            aria-label="Buscar billetera o cuenta"
+            className="input flex-1 min-w-[200px]"
+          />
+          {query && (
+            <button type="button" onClick={() => setQuery("")} className="btn-ghost py-1.5">
+              Limpiar
+            </button>
+          )}
+        </div>
+
+        {guaranteed.length > 0 && (
+          <section>
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-ink">Rendimiento garantizado</div>
+              <div className="text-xs text-muted mt-0.5">
+                Cuentas remuneradas y billeteras con tasa fija garantizada
+              </div>
+            </div>
+            <div className="space-y-2">
+              {guaranteed.map((spec, i) => (
+                <BilleteraCard key={(spec.row as Billetera).id} spec={spec} rank={i + 1} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {conditional.length > 0 && (
+          <section>
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-ink">Con condiciones especiales</div>
+              <div className="text-xs text-muted mt-0.5">
+                Productos con requisitos o condiciones particulares para acceder
+              </div>
+            </div>
+            <div className="space-y-2">
+              {conditional.map((spec, i) => (
+                <BilleteraCard
+                  key={(spec.row as Billetera).id}
+                  spec={spec}
+                  rank={guaranteed.length + i + 1}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {rows.length === 0 && (
+          <div className="empty-state">
+            {query ? `Ninguna billetera coincide con "${query}".` : "Sin billeteras para mostrar."}
+          </div>
+        )}
+
+        <p className="text-[10px] text-muted leading-relaxed">
+          Las tasas de billeteras no provienen del BCRA — son publicadas por cada
+          entidad. Verificá en la app correspondiente antes de operar.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -189,7 +294,7 @@ export default function ComparadorList({ tipo, data, initialSub }: Props) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar banco o billetera"
+          placeholder="Buscar banco"
           aria-label="Buscar banco o producto"
           className="input flex-1 min-w-[200px]"
         />
@@ -204,11 +309,39 @@ export default function ComparadorList({ tipo, data, initialSub }: Props) {
         )}
       </div>
 
-      <div className="text-[10px] uppercase tracking-widest text-muted tabular">
-        Mostrando {rows.length} de {totalSinFiltro}{" "}
-        {totalSinFiltro === 1 ? "entidad" : "entidades"}
-        {query && ` · filtrado "${query}"`}
-      </div>
+      {tipo === "plazos-fijos" && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setSoloRelevantes(!soloRelevantes)}
+            className={`text-[10px] uppercase tracking-widest px-2 py-1 border transition-colors ${
+              soloRelevantes
+                ? "border-accent text-accent"
+                : "border-border text-muted hover:text-ink hover:border-borderStrong"
+            }`}
+          >
+            {soloRelevantes ? "Bancos principales" : "Todos los bancos"}
+          </button>
+          <span className="text-[10px] text-muted">
+            {rows.length} entidades ·{" "}
+            <button
+              type="button"
+              onClick={() => setSoloRelevantes(!soloRelevantes)}
+              className="underline hover:text-ink"
+            >
+              {soloRelevantes ? "ver todos" : "solo principales"}
+            </button>
+          </span>
+        </div>
+      )}
+
+      {tipo !== "plazos-fijos" && (
+        <div className="text-[10px] uppercase tracking-widest text-muted tabular">
+          Mostrando {rows.length} de {totalSinFiltro}{" "}
+          {totalSinFiltro === 1 ? "entidad" : "entidades"}
+          {query && ` · filtrado "${query}"`}
+        </div>
+      )}
 
       {tipo === "plazos-fijos" && (
         <CalcStrip
@@ -251,6 +384,50 @@ export default function ComparadorList({ tipo, data, initialSub }: Props) {
         </div>
       )}
     </div>
+  );
+}
+
+function BilleteraCard({ spec, rank }: { spec: RowSpec; rank: number }) {
+  const b = spec.row as Billetera;
+  const isTop = rank <= 3;
+
+  return (
+    <article
+      className={`border bg-panel hover:bg-panel2 transition-all duration-150 ease-spring p-3 sm:p-4 flex items-start gap-3 sm:gap-4 ${
+        isTop ? "border-accent/40" : "border-border"
+      }`}
+    >
+      <BankAvatar name={b.descripcionEntidad} size={44} />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm sm:text-base text-ink truncate">{b.nombre}</div>
+        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-widest border border-border text-muted px-1.5 py-0.5">
+            {spec.chip}
+          </span>
+          {b.limiteARS !== undefined ? (
+            <span className="text-[10px] text-mutedSoft tabular">
+              Límite: {formatARS(b.limiteARS)}
+            </span>
+          ) : (
+            <span className="text-[10px] text-mutedSoft">Sin límite</span>
+          )}
+        </div>
+        {b.condicion && (
+          <p className="text-[10px] text-muted mt-1.5 leading-snug max-w-xs">
+            {b.condicion}
+          </p>
+        )}
+      </div>
+      <div className="text-right shrink-0 min-w-[80px]">
+        <div className="text-xl sm:text-2xl font-bold tabular text-accent">
+          {formatNumber(b.tna, 2)}%
+        </div>
+        <div className="text-[10px] uppercase tracking-widest text-muted">TNA</div>
+        <div className="text-[9px] text-mutedSoft mt-1 tabular">
+          desde {b.updatedAt.split("-").reverse().join("/")}
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -383,7 +560,8 @@ function RowCard({
   calc?: { monto: number; plazoDias: number };
   rank: number;
 }) {
-  const banco = shortBankName(spec.row.descripcionEntidad ?? "");
+  const rawName = (spec.row as Billetera).nombre ?? spec.row.descripcionEntidad ?? "";
+  const banco = shortBankName(rawName);
   const toneClass =
     spec.primaryTone === "accent"
       ? "text-accent"
@@ -410,7 +588,7 @@ function RowCard({
         isTop ? "border-accent/40" : "border-border"
       }`}
     >
-      <BankAvatar name={spec.row.descripcionEntidad ?? "—"} size={44} />
+      <BankAvatar name={rawName || "—"} size={44} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <div className="text-sm sm:text-base text-ink truncate">{banco}</div>

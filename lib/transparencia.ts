@@ -1,4 +1,5 @@
 export type Tipo =
+  | "billeteras"
   | "plazos-fijos"
   | "personales"
   | "hipotecarios"
@@ -8,6 +9,7 @@ export type Tipo =
   | "paquetes";
 
 export const TIPOS: { id: Tipo; label: string; corto: string }[] = [
+  { id: "billeteras", label: "Billeteras / Cuentas", corto: "BV" },
   { id: "plazos-fijos", label: "Plazos Fijos", corto: "PF" },
   { id: "personales", label: "Préstamos Personales", corto: "PP" },
   { id: "hipotecarios", label: "Préstamos Hipotecarios", corto: "PH" },

@@ -53,11 +53,13 @@ function pickTop5(tipo: Tipo, data: any[]) {
         return r.comisionMaximaMantenimiento ?? Infinity;
       case "cajas":
         return r.procesoSimplificadoDebidaDiligencia === "SI" ? 1 : 0;
+      case "billeteras":
+        return r.tna ?? 0;
     }
   }
 
   const dir =
-    tipo === "plazos-fijos" || tipo === "cajas" ? -1 : 1;
+    tipo === "plazos-fijos" || tipo === "cajas" || tipo === "billeteras" ? -1 : 1;
 
   const sorted = [...data]
     .filter((r) => {
@@ -154,6 +156,12 @@ function describeRow(
         label: "Apertura simpl.",
         metric: r.procesoSimplificadoDebidaDiligencia === "SI" ? "Sí" : "—",
         secondary: undefined,
+      };
+    case "billeteras":
+      return {
+        label: "TNA",
+        metric: formatPct(r.tna ?? 0),
+        secondary: r.nombre,
       };
   }
 }

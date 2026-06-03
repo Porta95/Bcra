@@ -8,6 +8,7 @@ import {
   getPrestamosPrendarios,
   getTarjetasCredito,
 } from "@/lib/bcra";
+import { BILLETERAS, getBilleterasUpdatedAt } from "@/lib/billeteras-data";
 import ComparadorList from "@/components/ComparadorList";
 import TipoSelector from "@/components/TipoSelector";
 import { TIPOS, type Tipo } from "@/lib/transparencia";
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-const FETCHERS: Record<Tipo, () => Promise<any[]>> = {
+const FETCHERS: Partial<Record<Tipo, () => Promise<any[]>>> = {
   "plazos-fijos": getPlazosFijos,
   "personales": getPrestamosPersonales,
   "hipotecarios": getPrestamosHipotecarios,
@@ -76,7 +77,7 @@ export default async function Home({
 }) {
   const tipo: Tipo = isTipo(searchParams.tipo)
     ? searchParams.tipo
-    : "plazos-fijos";
+    : "billeteras";
   const tipoLabel = TIPOS.find((t) => t.id === tipo)?.label ?? "";
   const initialSub: SubTipoPF | undefined =
     tipo === "plazos-fijos" && isSubPF(searchParams.sub)
@@ -85,18 +86,28 @@ export default async function Home({
 
   let data: any[] = [];
   let error: string | null = null;
-  try {
-    data = await FETCHERS[tipo]();
-  } catch (e) {
-    error = e instanceof Error ? e.message : "Error desconocido";
+
+  if (tipo === "billeteras") {
+    data = BILLETERAS as any[];
+  } else {
+    const fetcher = FETCHERS[tipo];
+    if (fetcher) {
+      try {
+        data = await fetcher();
+      } catch (e) {
+        error = e instanceof Error ? e.message : "Error desconocido";
+      }
+    }
   }
 
   const ultimaActualizacion =
-    data
-      .map((r) => r.fechaInformacion as string | undefined)
-      .filter((x): x is string => !!x)
-      .sort()
-      .pop() ?? null;
+    tipo === "billeteras"
+      ? getBilleterasUpdatedAt()
+      : (data
+          .map((r) => r.fechaInformacion as string | undefined)
+          .filter((x): x is string => !!x)
+          .sort()
+          .pop() ?? null);
 
   return (
     <section aria-labelledby="comparador-title">
@@ -117,9 +128,9 @@ export default async function Home({
           <span className="italic text-accent">hoy</span>
         </h1>
         <p className="text-xs text-muted mt-3 max-w-2xl leading-relaxed">
-          Tasas, comisiones y condiciones que cada banco le declara al BCRA.
-          Ordenado por mejor primero. Las condiciones reales pueden variar según
-          tu perfil.
+          {tipo === "billeteras"
+            ? "Tasas de rendimiento de billeteras virtuales y cuentas remuneradas de apertura gratuita. Verificá en la app de cada entidad antes de operar."
+            : "Tasas, comisiones y condiciones que cada banco le declara al BCRA. Ordenado por mejor primero. Las condiciones reales pueden variar según tu perfil."}
         </p>
         {!error && data.length > 0 && (
           <div className="text-[10px] tabular text-muted mt-3 uppercase tracking-widest">
