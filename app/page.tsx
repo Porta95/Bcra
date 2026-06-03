@@ -200,7 +200,7 @@ export default async function Home() {
         </section>
       )}
 
-      {/* ── LECAPs ─────────────────────────────────────────────────────────── */}
+      {/* ── LECAPs / BONCAPs ───────────────────────────────────────────────── */}
       {lecaps.length > 0 && (
         <section aria-labelledby="lecaps-title">
           <div className="flex items-center justify-between mb-4">
@@ -209,7 +209,7 @@ export default async function Home() {
               className="section-eyebrow flex items-center gap-2"
             >
               <span aria-hidden="true" className="inline-block w-6 h-px bg-accent align-middle" />
-              Letras · mayor rendimiento
+              LECAPs y BONCAPs · mayor TNA
             </h2>
             <span className="text-[10px] tabular text-muted uppercase tracking-widest">
               TNA implícita
@@ -219,11 +219,12 @@ export default async function Home() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-panel">
-                  <th className="text-left px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest">Símbolo</th>
+                  <th className="text-left px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest">Ticker</th>
                   <th className="text-left px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest hidden sm:table-cell">Vencimiento</th>
                   <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest">Precio</th>
-                  <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest">TNA</th>
+                  <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest hidden md:table-cell">Pago final</th>
                   <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest hidden sm:table-cell">Días</th>
+                  <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest">TNA</th>
                   <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest hidden md:table-cell">Δ%</th>
                 </tr>
               </thead>
@@ -234,7 +235,16 @@ export default async function Home() {
                     className="border-b border-border/50 bg-panel hover:bg-panel2 transition-colors"
                   >
                     <td className="px-4 py-3">
-                      <span className="tabular font-semibold text-ink">{l.symbol}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="tabular font-semibold text-ink">{l.symbol}</span>
+                        <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${
+                          l.tipo === "BONCAP"
+                            ? "bg-warn/10 text-warn"
+                            : "bg-accent/10 text-accent"
+                        }`}>
+                          {l.tipo}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-muted hidden sm:table-cell">
                       {l.vencimientoStr}
@@ -242,15 +252,18 @@ export default async function Home() {
                     <td className="px-4 py-3 text-right tabular text-ink">
                       {formatNumber(l.precio, 2)}
                     </td>
+                    <td className="px-4 py-3 text-right tabular text-muted hidden md:table-cell">
+                      {formatNumber(l.vpv, 2)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular text-muted hidden sm:table-cell">
+                      {l.diasAlVencimiento}d
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <span
                         className={`tabular font-bold ${i === 0 ? "text-ok" : "text-accent"}`}
                       >
                         {formatNumber(l.tnaImplicita, 2)}%
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular text-muted hidden sm:table-cell">
-                      {l.diasAlVencimiento}d
                     </td>
                     <td className="px-4 py-3 text-right hidden md:table-cell">
                       <span
