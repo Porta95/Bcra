@@ -97,7 +97,7 @@ export default function GlobalSearch() {
     setOpen(false);
     setQuery("");
     if (s.kind === "cuit") router.push(`/deudores?cuit=${s.clean}`);
-    else if (s.kind === "tipo") router.push(`/?tipo=${s.id}`);
+    else if (s.kind === "tipo") router.push(`/comparador?tipo=${s.id}`);
     else if (s.kind === "variable") router.push(`/variable/${s.v.idVariable}`);
     else if (s.kind === "cheque-hint") router.push("/cheques");
   }

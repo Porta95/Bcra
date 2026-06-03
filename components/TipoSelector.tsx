@@ -15,7 +15,7 @@ export default function TipoSelector({ active }: { active: Tipo }) {
         return (
           <Link
             key={t.id}
-            href={`/?tipo=${t.id}`}
+            href={`/comparador?tipo=${t.id}`}
             scroll={false}
             role="tab"
             aria-selected={isActive}
