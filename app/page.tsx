@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TrendingDown, TrendingUp, ArrowRight } from "lucide-react";
-import { getSerie, getVariables, formatNumber, type Variable } from "@/lib/bcra";
-import { getPlazosFijos } from "@/lib/bcra";
+import { getSerie, getVariables, getPlazosFijos, formatNumber, type Variable } from "@/lib/bcra";
+import { BANCOS_RELEVANTES_KEYWORDS } from "@/lib/comparador-helpers";
 import { BILLETERAS } from "@/lib/billeteras-data";
 import { getLecaps } from "@/lib/lecaps";
 import Sparkline from "@/components/Sparkline";
@@ -17,24 +17,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-// Macro metrics to display
-const MACRO_PATTERNS: { key: string; label: string; match: RegExp; cat?: RegExp; unit?: string }[] = [
-  {
-    key: "dolar_mayorista",
-    label: "Dólar mayorista",
-    match: /tipo de cambio mayorista/i,
-    unit: "ARS",
-  },
+// BCRA variables for inflación y reservas
+const BCRA_PATTERNS: { key: string; label: string; match: RegExp; cat?: RegExp; unit: string }[] = [
   {
     key: "ipc",
     label: "Inflación mensual",
     match: /variación mensual del índice de precios al consumidor/i,
-    unit: "%",
-  },
-  {
-    key: "ipc_anual",
-    label: "Inflación interanual",
-    match: /variación.*anual.*índice.*precios|inflación.*interanual|variación interanual.*ipc/i,
     unit: "%",
   },
   {
@@ -46,19 +34,37 @@ const MACRO_PATTERNS: { key: string; label: string; match: RegExp; cat?: RegExp;
   },
 ];
 
-function pickMacro(vars: Variable[]) {
-  return MACRO_PATTERNS.map((p) => {
+function pickBcra(vars: Variable[]) {
+  return BCRA_PATTERNS.map((p) => {
     const v = vars.find((x) => {
       if (!p.match.test(x.descripcion)) return false;
       if (p.cat && !p.cat.test(x.categoria)) return false;
       return true;
     });
     return v ? { ...p, v } : null;
-  }).filter((x): x is typeof MACRO_PATTERNS[0] & { v: Variable } => !!x);
+  }).filter((x): x is typeof BCRA_PATTERNS[0] & { v: Variable } => !!x);
 }
 
 export default async function Home() {
-  // ── Macro metrics ──────────────────────────────────────────────────────────
+  // ── Dólar oficial compra/venta (dolarapi.com) ──────────────────────────────
+  let dolarCompra = 0;
+  let dolarVenta = 0;
+  let dolarSparkId: number | null = null; // usaremos variable 4 de BCRA para sparkline
+  let dolarSpark: number[] = [];
+
+  try {
+    const dRes = await fetch("https://dolarapi.com/v1/dolares/oficial", {
+      next: { revalidate: 1800 },
+      headers: { Accept: "application/json" },
+    });
+    if (dRes.ok) {
+      const d = (await dRes.json()) as { compra: number; venta: number };
+      dolarCompra = d.compra;
+      dolarVenta = d.venta;
+    }
+  } catch { /* silently degrade */ }
+
+  // ── Macro metrics BCRA (inflación + reservas) ─────────────────────────────
   let macroCards: {
     key: string; label: string; unit: string;
     value: number; spark: number[]; delta: number; v: Variable;
@@ -66,7 +72,18 @@ export default async function Home() {
 
   try {
     const variables = await getVariables();
-    const picks = pickMacro(variables);
+    const picks = pickBcra(variables);
+
+    // También buscamos variable 4 (minorista vendedor) para sparkline del dólar
+    const varMinorista = variables.find((x) =>
+      /tipo de cambio minorista.*promedio vendedor/i.test(x.descripcion)
+    );
+    if (varMinorista) {
+      const serie4 = await getSerie(varMinorista.idVariable).catch(() => []);
+      dolarSpark = serie4.slice(-30).map((x) => x.valor);
+      dolarSparkId = varMinorista.idVariable;
+    }
+
     macroCards = await Promise.all(
       picks.map(async (p) => {
         const serie = await getSerie(p.v.idVariable).catch(() => []);
@@ -74,12 +91,17 @@ export default async function Home() {
         const last = serie[serie.length - 1]?.valor ?? p.v.ultValorInformado;
         const base = serie[Math.max(0, serie.length - 30)]?.valor ?? last;
         const delta = base === 0 ? 0 : ((last - base) / Math.abs(base)) * 100;
-        return { key: p.key, label: p.label, unit: p.unit ?? "", value: last, spark: last30, delta, v: p.v };
+        return { key: p.key, label: p.label, unit: p.unit, value: last, spark: last30, delta, v: p.v };
       }),
     );
   } catch {
     // silently degrade
   }
+
+  // Calcular delta 30d del dólar (spark)
+  const dolarDelta = dolarSpark.length > 1
+    ? ((dolarSpark[dolarSpark.length - 1] - dolarSpark[0]) / Math.abs(dolarSpark[0])) * 100
+    : 0;
 
   // ── LECAPs ─────────────────────────────────────────────────────────────────
   let lecaps: Awaited<ReturnType<typeof getLecaps>> = [];
@@ -93,11 +115,13 @@ export default async function Home() {
   let topPF: { descripcionEntidad: string; tea: number }[] = [];
   try {
     const pf = await getPlazosFijos();
-    const tradicionales = pf.filter(
-      (r) =>
-        !r.denominacion?.toLowerCase().includes("uva") &&
-        (r.tasaEfectivaAnualMinima ?? 0) > 0,
-    );
+    const tradicionales = pf.filter((r) => {
+      if (r.denominacion?.toLowerCase().includes("uva")) return false;
+      if ((r.tasaEfectivaAnualMinima ?? 0) <= 0) return false;
+      // Solo bancos conocidos (excluye mutuales, cooperativas, etc.)
+      const nombre = r.descripcionEntidad.toUpperCase();
+      return Array.from(BANCOS_RELEVANTES_KEYWORDS).some((k) => nombre.includes(k));
+    });
     const best = new Map<string, typeof tradicionales[0]>();
     for (const r of tradicionales) {
       const prev = best.get(r.descripcionEntidad);
@@ -145,7 +169,7 @@ export default async function Home() {
       </section>
 
       {/* ── Macro metrics ──────────────────────────────────────────────────── */}
-      {macroCards.length > 0 && (
+      {(dolarVenta > 0 || macroCards.length > 0) && (
         <section aria-labelledby="macro-title">
           <div className="flex items-center justify-between mb-4">
             <h2
@@ -163,6 +187,53 @@ export default async function Home() {
             </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border border border-border">
+
+            {/* Dólar compra */}
+            {dolarCompra > 0 && (
+              <div className="bg-panel p-4">
+                <div className="section-eyebrow text-[10px]">Dólar compra</div>
+                <div className="tabular text-xl font-bold text-ink mt-1">
+                  {formatNumber(dolarCompra, 0)}
+                  <span className="text-xs font-normal text-muted ml-1">ARS</span>
+                </div>
+                <div className={`text-xs tabular mt-1 inline-flex items-center gap-1 ${dolarDelta >= 0 ? "text-ok" : "text-danger"}`}>
+                  {dolarDelta >= 0 ? <TrendingUp size={11} aria-hidden="true" /> : <TrendingDown size={11} aria-hidden="true" />}
+                  {formatNumber(Math.abs(dolarDelta))}%
+                  <span className="text-muted ml-1 normal-case">30d</span>
+                </div>
+                {dolarSpark.length > 1 && (
+                  <div className="mt-3">
+                    <Sparkline data={dolarSpark} positive={dolarDelta >= 0} height={28} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Dólar venta */}
+            {dolarVenta > 0 && (
+              <Link
+                href={dolarSparkId ? `/variable/${dolarSparkId}` : "/macro"}
+                className="bg-panel hover:bg-panel2 transition-colors p-4 group"
+              >
+                <div className="section-eyebrow group-hover:text-accent text-[10px]">Dólar venta</div>
+                <div className="tabular text-xl font-bold text-ink mt-1">
+                  {formatNumber(dolarVenta, 0)}
+                  <span className="text-xs font-normal text-muted ml-1">ARS</span>
+                </div>
+                <div className={`text-xs tabular mt-1 inline-flex items-center gap-1 ${dolarDelta >= 0 ? "text-ok" : "text-danger"}`}>
+                  {dolarDelta >= 0 ? <TrendingUp size={11} aria-hidden="true" /> : <TrendingDown size={11} aria-hidden="true" />}
+                  {formatNumber(Math.abs(dolarDelta))}%
+                  <span className="text-muted ml-1 normal-case">30d</span>
+                </div>
+                {dolarSpark.length > 1 && (
+                  <div className="mt-3">
+                    <Sparkline data={dolarSpark} positive={dolarDelta >= 0} height={28} />
+                  </div>
+                )}
+              </Link>
+            )}
+
+            {/* Inflación + Reservas del BCRA */}
             {macroCards.map((m) => (
               <Link
                 key={m.key}
