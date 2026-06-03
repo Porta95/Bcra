@@ -122,12 +122,12 @@ export default async function Home({
         </div>
         <h1
           id="comparador-title"
-          className="font-display text-display tracking-tight mt-1"
+          className="text-display font-bold tracking-tight mt-1"
         >
           Qué banco te conviene{" "}
-          <span className="italic text-accent">hoy</span>
+          <span className="text-accent">hoy</span>
         </h1>
-        <p className="text-xs text-muted mt-3 max-w-2xl leading-relaxed">
+        <p className="text-sm text-muted mt-3 max-w-2xl leading-relaxed">
           {tipo === "billeteras"
             ? "Tasas de rendimiento de billeteras virtuales y cuentas remuneradas de apertura gratuita en Argentina."
             : "Tasas, comisiones y condiciones que cada banco le declara al BCRA. Ordenado por mejor primero. Las condiciones reales pueden variar según tu perfil."}

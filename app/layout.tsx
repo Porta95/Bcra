@@ -51,11 +51,11 @@ export const metadata: Metadata = {
 };
 
 const NAV = [
-  { href: "/", label: "Comparador" },
-  { href: "/macro", label: "Macro" },
-  { href: "/deudores", label: "Deudores" },
-  { href: "/cheques", label: "Cheques" },
-  { href: "/contexto", label: "Contexto" },
+  { href: "/",         label: "Tasas"     },
+  { href: "/macro",    label: "Macro"     },
+  { href: "/deudores", label: "Deudores"  },
+  { href: "/cheques",  label: "Cheques"   },
+  { href: "/contexto", label: "Contexto"  },
 ];
 
 export default function RootLayout({
@@ -72,76 +72,91 @@ export default function RootLayout({
               "try{var t=localStorage.getItem('theme');if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}",
           }}
         />
-        <div className="relative z-10">
-          <header className="border-b border-border bg-bg/80 backdrop-blur sticky top-0 z-20">
-            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-              <Link
-                href="/"
-                aria-label="Panel BCRA — Inicio"
-                className="flex items-center gap-2 group shrink-0"
-              >
-                <span
-                  aria-hidden="true"
-                  className="inline-block w-1.5 h-3.5 bg-accent"
-                />
-                <span className="font-display italic text-lg tracking-tight hidden sm:inline">
-                  Panel <span className="text-accent">BCRA</span>
-                </span>
-                <span className="font-display italic text-lg tracking-tight sm:hidden">
-                  <span className="text-accent">BCRA</span>
-                </span>
-              </Link>
 
-              <div className="flex-1 min-w-0 hidden md:block">
-                <GlobalSearch />
+        <div className="relative z-10">
+          {/* ── Header ───────────────────────────────────────────────────── */}
+          <header className="sticky top-0 z-20 border-b border-border/60 bg-bg/75 backdrop-blur-xl">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6">
+              <div className="flex items-center gap-4 h-14">
+
+                {/* Logo */}
+                <Link
+                  href="/"
+                  aria-label="Panel BCRA — Inicio"
+                  className="flex items-center gap-2 shrink-0 group"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-accent/10 border border-accent/30 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <rect x="1" y="7" width="3" height="6" rx="1" fill="rgb(var(--accent))"/>
+                      <rect x="5.5" y="4" width="3" height="9" rx="1" fill="rgb(var(--accent))"/>
+                      <rect x="10" y="1" width="3" height="12" rx="1" fill="rgb(var(--accent))"/>
+                    </svg>
+                  </div>
+                  <span className="font-semibold text-sm tracking-tight text-ink">
+                    Panel <span className="text-accent">BCRA</span>
+                  </span>
+                </Link>
+
+                {/* Search — desktop */}
+                <div className="flex-1 min-w-0 hidden md:block max-w-xs">
+                  <GlobalSearch />
+                </div>
+
+                {/* Nav */}
+                <nav
+                  aria-label="Principal"
+                  className="flex items-center gap-0.5 text-sm overflow-x-auto ml-auto"
+                >
+                  {NAV.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="px-3 py-1.5 rounded-md text-muted hover:text-ink hover:bg-panel2 transition-all text-sm whitespace-nowrap font-medium"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </nav>
+
+                <ThemeToggle />
               </div>
 
-              <nav
-                aria-label="Principal"
-                className="relative flex gap-0 text-[10px] sm:text-xs uppercase tracking-widest overflow-x-auto"
-              >
-                {NAV.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="px-2 sm:px-3 py-2.5 sm:py-2 hover:text-accent transition-colors whitespace-nowrap text-muted"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-bg to-transparent sm:hidden"
-                />
-              </nav>
-
-              <ThemeToggle />
-            </div>
-            <div className="md:hidden border-t border-border bg-bg/80">
-              <div className="max-w-6xl mx-auto px-4 py-2">
+              {/* Search — mobile */}
+              <div className="md:hidden pb-3">
                 <GlobalSearch />
               </div>
             </div>
           </header>
 
-          <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
+          {/* ── Main ─────────────────────────────────────────────────────── */}
+          <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+            {children}
+          </main>
 
-          <footer className="border-t border-border mt-16 pt-8 pb-12">
-            <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-              <div>
-                <div className="section-eyebrow mb-2">Fuentes</div>
-                <p className="text-muted leading-relaxed">
-                  Datos públicos de{" "}
-                  <span className="text-ink">api.bcra.gob.ar</span>. Sin login,
-                  sin tracking. Cache en edge de Vercel.
-                </p>
-              </div>
-              <div>
-                <div className="section-eyebrow mb-2">Aviso</div>
-                <p className="text-muted leading-relaxed">
-                  Esto no es asesoría financiera. La información puede tener
-                  desfase respecto del valor real publicado por las entidades.
-                </p>
+          {/* ── Footer ───────────────────────────────────────────────────── */}
+          <footer className="border-t border-border/60 mt-20 py-10">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-accent/10 border border-accent/30 flex items-center justify-center">
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <rect x="1" y="7" width="3" height="6" rx="1" fill="rgb(var(--accent))"/>
+                      <rect x="5.5" y="4" width="3" height="9" rx="1" fill="rgb(var(--accent))"/>
+                      <rect x="10" y="1" width="3" height="12" rx="1" fill="rgb(var(--accent))"/>
+                    </svg>
+                  </div>
+                  <span className="text-sm font-semibold text-ink">Panel BCRA</span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 text-xs text-muted">
+                  <span>
+                    Datos de{" "}
+                    <span className="text-ink font-medium">api.bcra.gob.ar</span>
+                    {" "}· Sin login · Sin tracking
+                  </span>
+                  <span>No es asesoría financiera</span>
+                </div>
               </div>
             </div>
           </footer>

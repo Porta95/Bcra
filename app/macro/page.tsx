@@ -149,12 +149,12 @@ export default async function MacroPage() {
         </div>
         <h1
           id="macro-title"
-          className="font-display text-display tracking-tight mt-1"
+          className="text-display font-bold tracking-tight mt-1"
         >
           Las variables que mueven la{" "}
-          <span className="italic text-accent">economía</span>
+          <span className="text-accent">economía</span>
         </h1>
-        <p className="text-xs text-muted mt-3 max-w-2xl leading-relaxed">
+        <p className="text-sm text-muted mt-3 max-w-2xl leading-relaxed">
           Reservas, inflación, tasas, base monetaria y más de 1000 series del
           BCRA. Cada valor se publica con la frecuencia que define el banco
           central.

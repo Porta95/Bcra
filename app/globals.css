@@ -2,152 +2,194 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
+/* ── Dark (default) — deep navy + indigo ─────────────────────────────────── */
 :root {
   color-scheme: dark;
-  --bg: 10 10 10;
-  --panel: 17 17 17;
-  --panel2: 22 22 22;
-  --border: 38 38 38;
-  --border-strong: 58 58 58;
-  --muted: 138 138 138;
-  --muted-soft: 90 90 90;
-  --ink: 237 237 237;
-  --accent: 245 197 24;
-  --accent-dim: 168 138 16;
-  --ok: 74 222 128;
-  --warn: 245 158 11;
-  --danger: 239 68 68;
-  --info: 96 165 250;
-  --grid-line: rgba(255, 255, 255, 0.025);
-  --scroll-track: 10 10 10;
-  --scroll-thumb: 38 38 38;
-  --scroll-thumb-hover: 58 58 58;
+  --bg:           8  12  26;
+  --panel:       13  19  40;
+  --panel2:      18  26  52;
+  --border:      30  42  80;
+  --border-strong: 50 65 115;
+  --muted:      110 128 180;
+  --muted-soft:  65  80 135;
+  --ink:        220 230 255;
+  --accent:      99 102 241;   /* indigo-500 */
+  --accent-dim:  67  56 202;   /* indigo-600 */
+  --ok:          52 211 153;   /* emerald-400 */
+  --warn:       251 191  36;   /* amber-400  */
+  --danger:     248 113 113;   /* red-400    */
+  --info:        96 165 250;   /* blue-400   */
+  --scroll-track: 8 12 26;
+  --scroll-thumb: 30 42 80;
+  --scroll-thumb-hover: 50 65 115;
 }
 
+/* ── Light — clean indigo ─────────────────────────────────────────────────── */
 [data-theme="light"] {
   color-scheme: light;
-  --bg: 247 246 241;
-  --panel: 255 255 255;
-  --panel2: 240 238 232;
-  --border: 220 217 209;
-  --border-strong: 168 165 156;
-  --muted: 99 96 90;
-  --muted-soft: 154 151 143;
-  --ink: 26 24 21;
-  --accent: 184 142 11;
-  --accent-dim: 245 197 24;
-  --ok: 22 163 74;
-  --warn: 180 83 9;
-  --danger: 220 38 38;
-  --info: 29 78 216;
-  --grid-line: rgba(0, 0, 0, 0.04);
-  --scroll-track: 247 246 241;
-  --scroll-thumb: 220 217 209;
-  --scroll-thumb-hover: 168 165 156;
+  --bg:         248 250 255;
+  --panel:      255 255 255;
+  --panel2:     238 242 255;
+  --border:     219 234 254;
+  --border-strong: 191 219 254;
+  --muted:      100 116 139;
+  --muted-soft: 148 163 184;
+  --ink:         15  23  42;
+  --accent:      79  70 229;   /* indigo-600 */
+  --accent-dim:  99 102 241;
+  --ok:          16 185 129;
+  --warn:       217 119   6;
+  --danger:     220  38  38;
+  --info:        37  99 235;
+  --scroll-track: 248 250 255;
+  --scroll-thumb: 219 234 254;
+  --scroll-thumb-hover: 191 219 254;
 }
 
+/* ── Base ─────────────────────────────────────────────────────────────────── */
 html, body {
   background: rgb(var(--bg));
   color: rgb(var(--ink));
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-feature-settings: "tnum" 1, "ss01" 1;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Ambient glow — Stripe-style radial gradient */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 48px 48px;
+  background:
+    radial-gradient(ellipse 80% 45% at 50% -8%, rgba(99, 102, 241, 0.14), transparent),
+    radial-gradient(ellipse 55% 30% at 85% 5%,  rgba(56, 189, 248, 0.07), transparent);
   z-index: 0;
 }
 
-.tabular { font-variant-numeric: tabular-nums; }
+[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse 80% 45% at 50% -8%, rgba(79, 70, 229, 0.08), transparent),
+    radial-gradient(ellipse 55% 30% at 85% 5%,  rgba(37, 99, 235, 0.04), transparent);
+}
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: rgb(var(--scroll-track)); }
-::-webkit-scrollbar-thumb { background: rgb(var(--scroll-thumb)); border-radius: 4px; }
+/* JetBrains Mono only for numbers/data — keeps financial values crisp */
+.tabular {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar         { width: 6px; height: 6px; }
+::-webkit-scrollbar-track   { background: rgb(var(--scroll-track)); }
+::-webkit-scrollbar-thumb   { background: rgb(var(--scroll-thumb)); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgb(var(--scroll-thumb-hover)); }
 
+/* ── Focus ────────────────────────────────────────────────────────────────── */
 *:focus-visible {
-  outline: 2px solid rgb(var(--accent));
+  outline: 2px solid rgb(var(--accent) / 0.7);
   outline-offset: 2px;
-  border-radius: 1px;
+  border-radius: 4px;
 }
-button:focus-visible, a:focus-visible { outline-offset: 3px; }
 
-/* Stagger entrance for grids/lists. Wrap items with this class and pass --i */
+/* ── Entrance animations ──────────────────────────────────────────────────── */
 .stagger > * {
-  animation: fadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  animation-delay: calc(var(--i, 0) * 35ms);
+  animation: fadeUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
 }
 
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
 }
-.fade-up { animation: fadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.fade-up { animation: fadeUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 
 @media (prefers-reduced-motion: reduce) {
-  .fade-up,
-  .stagger > * { animation: none; }
-  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  .fade-up, .stagger > * { animation: none; }
+  *, *::before, *::after  { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 
+/* ── Component layer ──────────────────────────────────────────────────────── */
 @layer components {
+
+  /* Inputs */
   .input {
-    @apply w-full bg-panel border border-border focus:border-accent focus:outline-none px-4 py-3 text-sm placeholder:text-muted transition-colors;
+    @apply w-full bg-panel border border-border rounded-lg
+           focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/30
+           px-4 py-3 text-sm placeholder:text-muted transition-all;
   }
   .input-sm {
-    @apply w-full bg-panel border border-border focus:border-accent focus:outline-none px-3 py-2 text-xs placeholder:text-muted transition-colors;
+    @apply w-full bg-panel border border-border rounded-md
+           focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/30
+           px-3 py-2 text-xs placeholder:text-muted transition-all;
   }
+
+  /* Buttons */
   .btn-primary {
-    @apply bg-accent text-bg px-6 py-3 text-xs uppercase tracking-widest font-bold hover:bg-accent/90 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 ease-spring;
+    @apply bg-accent text-white rounded-lg px-5 py-2.5 text-sm font-semibold
+           hover:bg-accentDim active:scale-[0.97]
+           disabled:opacity-40 disabled:cursor-not-allowed
+           transition-all duration-150 ease-spring
+           shadow-[0_0_20px_rgb(99_102_241/0.25)];
   }
   .btn-ghost {
-    @apply border border-border text-muted hover:text-ink hover:border-borderStrong active:scale-[0.97] px-3 py-2 text-xs uppercase tracking-widest transition-all duration-150 ease-spring;
+    @apply border border-border text-muted rounded-lg
+           hover:text-ink hover:border-borderStrong hover:bg-panel2
+           active:scale-[0.97] px-3 py-2 text-sm
+           transition-all duration-150 ease-spring;
   }
-  .data-table {
-    @apply w-full text-xs;
-  }
-  .data-table thead th {
-    @apply bg-panel text-muted uppercase tracking-widest font-normal text-2xs px-3 py-2.5 text-left;
-  }
-  .data-table tbody td {
-    @apply px-3 py-2.5 border-t border-border;
-  }
-  .data-table tbody tr {
-    @apply hover:bg-panel2 transition-colors;
-  }
+
+  /* Cards */
   .card {
-    @apply border border-border bg-panel p-4;
+    @apply border border-border bg-panel rounded-xl p-4
+           shadow-[0_1px_3px_rgb(0_0_0/0.3)];
   }
   .card-emphasis {
-    @apply border-l-2 border-l-accent border-y border-r border-border bg-panel p-5;
+    @apply border-l-2 border-l-accent border-y border-r border-border bg-panel rounded-xl p-5
+           shadow-[0_1px_3px_rgb(0_0_0/0.3)];
   }
   .card-press {
     @apply transition-transform duration-150 ease-spring active:scale-[0.985];
   }
+
+  /* Data table */
+  .data-table { @apply w-full text-xs; }
+  .data-table thead th {
+    @apply bg-panel text-muted uppercase tracking-widest font-medium text-2xs px-3 py-2.5 text-left;
+  }
+  .data-table tbody td   { @apply px-3 py-2.5 border-t border-border; }
+  .data-table tbody tr   { @apply hover:bg-panel2 transition-colors; }
+
+  /* Typography helpers */
   .section-eyebrow {
-    @apply text-2xs uppercase tracking-[0.2em] text-muted;
+    @apply text-2xs uppercase tracking-[0.18em] text-muted font-medium;
   }
   .hero-rule {
     @apply border-l-2 border-accent pl-4;
   }
+
+  /* Utility */
   .skeleton {
-    @apply bg-panel border border-border animate-pulse-bar;
+    @apply bg-panel border border-border rounded-lg animate-pulse-bar;
   }
   .spinner {
     @apply inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full;
     animation: spin 0.7s linear infinite;
   }
   .empty-state {
-    @apply border border-dashed border-borderStrong text-muted text-sm py-12 text-center;
+    @apply border border-dashed border-borderStrong text-muted text-sm py-12 text-center rounded-xl;
   }
+
+  /* Accent badge / pill */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-2xs font-medium;
+  }
+  .badge-accent { @apply badge bg-accent/10 text-accent border border-accent/20; }
+  .badge-ok     { @apply badge bg-ok/10     text-ok     border border-ok/20;     }
+  .badge-warn   { @apply badge bg-warn/10   text-warn   border border-warn/20;   }
+  .badge-danger { @apply badge bg-danger/10 text-danger border border-danger/20; }
 }
