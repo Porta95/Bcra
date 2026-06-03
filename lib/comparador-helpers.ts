@@ -136,6 +136,12 @@ export const BANCOS_RELEVANTES_KEYWORDS = new Set([
   "UALA", "NARANJA", "FRANCES", "COLUMBIA", "INDUSTRIAL",
 ]);
 
+// Entidades a excluir aunque contengan keywords anteriores (mutuales, etc.)
+export const BANCOS_EXCLUIR_KEYWORDS = new Set([
+  "MUTUAL", "COOPERATIVA", "COOPERATIV", "ASOCIACION", "ASOCIACIÓN",
+  "CAJA POPULAR", "CAJA RURAL", "FINANCIERA", "AMEPORT",
+]);
+
 function hashColor(name: string): string {
   let h = 0;
   for (const c of name) h = (h << 5) - h + c.charCodeAt(0);

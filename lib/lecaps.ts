@@ -25,6 +25,7 @@ export interface Lecap {
   ask: number;
   pctChange: number;
   tnaImplicita: number;       // % anualizado simple
+  tirImplicita: number;       // % anualizado compuesto
   diasAlVencimiento: number;
 }
 
@@ -34,7 +35,7 @@ function formatDate(iso: string): string {
 }
 
 export async function getLecaps(): Promise<Lecap[]> {
-  const [letrasRes, notesRes] = await Promise.all([
+  const [letrasRes, notesRes, bondsRes] = await Promise.all([
     fetch("https://api.argentinadatos.com/v1/finanzas/letras", {
       next: { revalidate: 3600 },
       headers: { Accept: "application/json" },
@@ -43,10 +44,15 @@ export async function getLecaps(): Promise<Lecap[]> {
       next: { revalidate: 300 },
       headers: { Accept: "application/json", "User-Agent": "panel-bcra/2.0" },
     }),
+    fetch("https://data912.com/live/arg_bonds", {
+      next: { revalidate: 300 },
+      headers: { Accept: "application/json", "User-Agent": "panel-bcra/2.0" },
+    }),
   ]);
 
   if (!letrasRes.ok) throw new Error(`argentinadatos letras ${letrasRes.status}`);
-  if (!notesRes.ok)  throw new Error(`data912 ${notesRes.status}`);
+  if (!notesRes.ok)  throw new Error(`data912 notes ${notesRes.status}`);
+  if (!bondsRes.ok)  throw new Error(`data912 bonds ${bondsRes.status}`);
 
   const letras = (await letrasRes.json()) as {
     ticker: string;
@@ -55,16 +61,13 @@ export async function getLecaps(): Promise<Lecap[]> {
     tem: number | null;
   }[];
 
-  const notes = (await notesRes.json()) as {
-    symbol: string;
-    c: number;
-    px_bid: number;
-    px_ask: number;
-    pct_change: number;
-  }[];
+  type PriceRow = { symbol: string; c: number; px_bid: number; px_ask: number; pct_change: number };
+  const notes  = (await notesRes.json())  as PriceRow[];
+  const bonds  = (await bondsRes.json())  as PriceRow[];
 
-  // Indice de precios live por symbol
-  const priceMap = new Map(notes.map((n) => [n.symbol, n]));
+  // Índice de precios live unificado (notes + bonds)
+  const priceMap = new Map<string, PriceRow>();
+  for (const r of [...notes, ...bonds]) priceMap.set(r.symbol, r);
 
   const todayMs = Date.UTC(
     new Date().getUTCFullYear(),
@@ -85,8 +88,12 @@ export async function getLecaps(): Promise<Lecap[]> {
 
       const vpv = letra.vpv;
       const precio = note.c;
-      const tna = ((vpv / precio) - 1) * (365 / dias) * 100;
+      const ratio = vpv / precio;
+      const tna = (ratio - 1) * (365 / dias) * 100;
       if (tna <= 0) return [];
+
+      // TIR = rendimiento compuesto anualizado
+      const tir = (Math.pow(ratio, 365 / dias) - 1) * 100;
 
       const tipo: "LECAP" | "BONCAP" = letra.ticker.startsWith("T") ? "BONCAP" : "LECAP";
 
@@ -100,6 +107,7 @@ export async function getLecaps(): Promise<Lecap[]> {
         ask:               note.px_ask ?? 0,
         pctChange:         note.pct_change ?? 0,
         tnaImplicita:      tna,
+        tirImplicita:      tir,
         diasAlVencimiento: dias,
       } satisfies Lecap];
     })

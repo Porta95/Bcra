@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TrendingDown, TrendingUp, ArrowRight } from "lucide-react";
 import { getSerie, getVariables, getPlazosFijos, formatNumber, type Variable } from "@/lib/bcra";
-import { BANCOS_RELEVANTES_KEYWORDS } from "@/lib/comparador-helpers";
+import { BANCOS_RELEVANTES_KEYWORDS, BANCOS_EXCLUIR_KEYWORDS } from "@/lib/comparador-helpers";
 import { BILLETERAS } from "@/lib/billeteras-data";
 import { getLecaps } from "@/lib/lecaps";
 import Sparkline from "@/components/Sparkline";
@@ -118,8 +118,9 @@ export default async function Home() {
     const tradicionales = pf.filter((r) => {
       if (r.denominacion?.toLowerCase().includes("uva")) return false;
       if ((r.tasaEfectivaAnualMinima ?? 0) <= 0) return false;
-      // Solo bancos conocidos (excluye mutuales, cooperativas, etc.)
       const nombre = r.descripcionEntidad.toUpperCase();
+      // Excluir mutuales, cooperativas, etc. aunque contengan keyword de banco
+      if (Array.from(BANCOS_EXCLUIR_KEYWORDS).some((k) => nombre.includes(k))) return false;
       return Array.from(BANCOS_RELEVANTES_KEYWORDS).some((k) => nombre.includes(k));
     });
     const best = new Map<string, typeof tradicionales[0]>();
@@ -296,7 +297,8 @@ export default async function Home() {
                   <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest hidden md:table-cell">Pago final</th>
                   <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest hidden sm:table-cell">Días</th>
                   <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest">TNA</th>
-                  <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest hidden md:table-cell">Δ%</th>
+                  <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest hidden sm:table-cell">TIR</th>
+                  <th className="text-right px-4 py-2.5 text-muted font-medium text-xs uppercase tracking-widest hidden lg:table-cell">Δ%</th>
                 </tr>
               </thead>
               <tbody>
@@ -330,13 +332,16 @@ export default async function Home() {
                       {l.diasAlVencimiento}d
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span
-                        className={`tabular font-bold ${i === 0 ? "text-ok" : "text-accent"}`}
-                      >
+                      <span className={`tabular font-bold ${i === 0 ? "text-ok" : "text-accent"}`}>
                         {formatNumber(l.tnaImplicita, 2)}%
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right hidden md:table-cell">
+                    <td className="px-4 py-3 text-right hidden sm:table-cell">
+                      <span className="tabular font-bold text-ok">
+                        {formatNumber(l.tirImplicita, 2)}%
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right hidden lg:table-cell">
                       <span
                         className={`tabular text-xs ${
                           l.pctChange >= 0 ? "text-ok" : "text-danger"
