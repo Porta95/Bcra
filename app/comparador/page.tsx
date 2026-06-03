@@ -45,7 +45,7 @@ function isSubPF(s: string | undefined): s is SubTipoPF {
 export default async function ComparadorPage({
   searchParams,
 }: {
-  searchParams: { tipo?: string; sub?: string };
+  searchParams: { tipo?: string; sub?: string; banco?: string };
 }) {
   const tipo: Tipo = isTipo(searchParams.tipo)
     ? searchParams.tipo
@@ -119,7 +119,13 @@ export default async function ComparadorPage({
           </div>
         </div>
       ) : (
-        <ComparadorList tipo={tipo} data={data} initialSub={initialSub} />
+        <ComparadorList
+          tipo={tipo}
+          data={data}
+          initialSub={initialSub}
+          initialQuery={searchParams.banco}
+          key={searchParams.banco ?? ""}
+        />
       )}
     </section>
   );

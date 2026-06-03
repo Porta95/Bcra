@@ -23,6 +23,7 @@ interface Props {
   tipo: Tipo;
   data: any[];
   initialSub?: SubTipoPF;
+  initialQuery?: string;
 }
 
 interface RowSpec {
@@ -154,8 +155,8 @@ function tieneMetricaValida(tipo: Tipo, r: any): boolean {
   }
 }
 
-export default function ComparadorList({ tipo, data, initialSub }: Props) {
-  const [query, setQuery] = useState("");
+export default function ComparadorList({ tipo, data, initialSub, initialQuery }: Props) {
+  const [query, setQuery] = useState(initialQuery ?? "");
   const [calcOn, setCalcOn] = useState(false);
   const [monto, setMonto] = useState(500_000);
   const [plazoDias, setPlazoDias] = useState(30);

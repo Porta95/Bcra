@@ -4,11 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Variable } from "@/lib/bcra";
 import { TIPOS } from "@/lib/transparencia";
+import { BANCOS_BUSQUEDA } from "@/lib/comparador-helpers";
 
 type Suggestion =
   | { kind: "cuit"; clean: string }
   | { kind: "variable"; v: Variable }
   | { kind: "tipo"; id: string; label: string }
+  | { kind: "banco"; keyword: string; display: string }
   | { kind: "cheque-hint" };
 
 export default function GlobalSearch() {
@@ -56,6 +58,15 @@ export default function GlobalSearch() {
     }
 
     const lower = q.toLowerCase();
+
+    // Bancos y billeteras conocidos
+    const bancosMatch = BANCOS_BUSQUEDA.filter(
+      (b) => b.display.toLowerCase().includes(lower) || b.keyword.includes(lower),
+    ).slice(0, 4);
+    for (const b of bancosMatch) {
+      out.push({ kind: "banco", keyword: b.keyword, display: b.display });
+    }
+
     for (const t of TIPOS) {
       if (t.label.toLowerCase().includes(lower)) {
         out.push({ kind: "tipo", id: t.id, label: t.label });
@@ -97,6 +108,7 @@ export default function GlobalSearch() {
     setOpen(false);
     setQuery("");
     if (s.kind === "cuit") router.push(`/deudores?cuit=${s.clean}`);
+    else if (s.kind === "banco") router.push(`/comparador?tipo=plazos-fijos&banco=${s.keyword}`);
     else if (s.kind === "tipo") router.push(`/comparador?tipo=${s.id}`);
     else if (s.kind === "variable") router.push(`/variable/${s.v.idVariable}`);
     else if (s.kind === "cheque-hint") router.push("/cheques");
@@ -194,6 +206,19 @@ function SuggestionRow({ s, active }: { s: Suggestion; active: boolean }) {
         <span className="tabular truncate">{s.clean}</span>
         <span className={`ml-auto text-[10px] ${active ? "text-bg/60" : "text-muted"}`}>
           → Deudores
+        </span>
+      </>
+    );
+  }
+  if (s.kind === "banco") {
+    return (
+      <>
+        <span className={`text-[10px] uppercase border px-1.5 ${tagClass}`}>
+          Banco
+        </span>
+        <span className="truncate font-medium">{s.display}</span>
+        <span className={`ml-auto text-[10px] ${active ? "text-bg/60" : "text-muted"}`}>
+          → Tasas
         </span>
       </>
     );

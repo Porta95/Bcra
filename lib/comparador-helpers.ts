@@ -128,12 +128,42 @@ const KNOWN_LOGOS: Record<
   CRESIUM: { color: "#37474F", short: "CS" },
 };
 
+export const BANCOS_BUSQUEDA: { keyword: string; display: string }[] = [
+  { keyword: "galicia",     display: "Banco Galicia"    },
+  { keyword: "santander",   display: "Santander"        },
+  { keyword: "bbva",        display: "BBVA"             },
+  { keyword: "macro",       display: "Banco Macro"      },
+  { keyword: "nacion",      display: "Banco Nación"     },
+  { keyword: "icbc",        display: "ICBC"             },
+  { keyword: "hsbc",        display: "HSBC"             },
+  { keyword: "provincia",   display: "Banco Provincia"  },
+  { keyword: "ciudad",      display: "Banco Ciudad"     },
+  { keyword: "credicoop",   display: "Credicoop"        },
+  { keyword: "patagonia",   display: "Banco Patagonia"  },
+  { keyword: "comafi",      display: "Banco Comafi"     },
+  { keyword: "supervielle", display: "Supervielle"      },
+  { keyword: "itau",        display: "Itaú"             },
+  { keyword: "hipotecario", display: "Banco Hipotecario"},
+  { keyword: "brubank",     display: "Brubank"          },
+  { keyword: "openbank",    display: "Openbank"         },
+  { keyword: "uala",        display: "Ualá"             },
+  { keyword: "naranja",     display: "Naranja X"        },
+  { keyword: "fiwind",      display: "Fiwind"           },
+  { keyword: "mercado",     display: "Mercado Pago"     },
+  { keyword: "personal",    display: "Personal Pay"     },
+  { keyword: "lemon",       display: "Lemon Cash"       },
+  { keyword: "carrefour",   display: "Carrefour Banco"  },
+  { keyword: "frances",     display: "BBVA (Frances)"   },
+];
+
 // Bancos relevantes para el filtro de Plazo Fijo
 export const BANCOS_RELEVANTES_KEYWORDS = new Set([
   "GALICIA", "SANTANDER", "BBVA", "MACRO", "NACION", "ICBC", "HSBC",
   "PROVINCIA", "CIUDAD", "CREDICOOP", "PATAGONIA", "COMAFI", "SUPERVIELLE",
   "ITAU", "HIPOTECARIO", "CITY", "REBA", "BRUBANK", "WILOBANK", "OPENBANK",
   "UALA", "NARANJA", "FRANCES", "COLUMBIA", "INDUSTRIAL",
+  "CORDOBA", "BANCOR", "MENDOZA", "TUCUMAN", "CHACO", "ENTRE RIOS",
+  "SALTA", "TIERRA DEL FUEGO", "SAN JUAN", "NEUQUEN", "RIO NEGRO",
 ]);
 
 // Entidades a excluir aunque contengan keywords anteriores (mutuales, etc.)
