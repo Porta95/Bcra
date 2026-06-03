@@ -258,16 +258,39 @@ function Reporte({ data }: { data: NonNullable<ApiResponse["data"]> }) {
     data.deudas?.denominacion ||
     data.historicas?.denominacion ||
     data.cheques?.denominacion ||
-    "Sin denominación informada";
+    null;
 
   const [tab, setTab] = useState<TabKey>("resumen");
   const cantBancos = analysis.bancos.length;
   const cantCheques = analysis.cheques.total;
   const cantPeriodos = analysis.timeline.length;
 
+  // Estado limpio cuando el BCRA no tiene registros
+  if (!analysis.hasAnyData) {
+    return (
+      <article aria-label="Sin antecedentes en el BCRA" className="fade-up">
+        <div className="border border-border bg-panel p-8 text-center space-y-3">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full border border-border bg-panel2 mb-2">
+            <Check size={22} className="text-ok" aria-hidden="true" />
+          </div>
+          <div className="text-base font-semibold text-ink">
+            {denom ?? "Sin denominación informada"}
+          </div>
+          <p className="text-sm text-muted max-w-md mx-auto leading-relaxed">
+            Este CUIT no figura en la Central de Deudores del BCRA.
+            No tiene deuda registrada en el sistema financiero formal ni cheques rechazados.
+          </p>
+          <p className="text-[11px] text-muted">
+            Limpio por silencio — fuente: BCRA
+          </p>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article aria-label="Informe de deudor" className="fade-up space-y-6">
-      <HeaderReporte denom={denom} analysis={analysis} />
+      <HeaderReporte denom={denom ?? "Sin denominación informada"} analysis={analysis} />
 
       <KpiStrip analysis={analysis} />
 
